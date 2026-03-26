@@ -752,19 +752,13 @@
                       </div>
                       {isExp && (
                         <div style={{ padding: "0 14px 12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                          {/* Source tags */}
-                          {card.sources && (
-                            <div style={{ display: "flex", gap: 4, paddingTop: 6, paddingBottom: 4 }}>
-                              {card.sources.map((s, i) => (
-                                <span key={i} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", color: "#6E7681", fontFamily: "'IBM Plex Mono', monospace" }}>{s}</span>
-                              ))}
-                            </div>
-                          )}
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 4, paddingTop: 4 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 4, paddingTop: 8 }}>
                             {card.detail.map((item, j) => <Row key={j} item={item} />)}
                           </div>
-                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                            <div style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: "rgba(88,166,255,0.1)", color: "#58A6FF", cursor: "pointer", fontWeight: 500 }}>Open source →</div>
+                          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                            {card.sources?.map((s, si) => (
+                              <div key={si} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: si === 0 ? "rgba(88,166,255,0.1)" : "rgba(255,255,255,0.04)", color: si === 0 ? "#58A6FF" : "#9B9C9E", cursor: "pointer", fontWeight: si === 0 ? 500 : 400 }}>Open in {s} →</div>
+                            ))}
                             <div onClick={() => openChat(card.id)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: "rgba(255,255,255,0.04)", color: "#9B9C9E", cursor: "pointer" }}>💬 Ask Agent</div>
                           </div>
                         </div>

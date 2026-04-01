@@ -10,27 +10,65 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #1A1D21; overflow: hidden; }
+    body { overflow: hidden; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 3px; }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect, useRef } = React;
 
     // =================================================================
-    // PAGE & CARD DATA
+    // THEMES
     // =================================================================
-    // detail rows now support:
-    //   expandedDetail: string  — additional context shown on expand
-    //   sourceLink: string      — label for "Open in X" button
-    //   actions: [{label, link}] — action buttons shown in expanded view
+    const THEMES = {
+      dark: {
+        bg: "#1A1D21", bgCard: "rgba(255,255,255,0.02)", bgCardHover: "rgba(88,166,255,0.03)",
+        bgExpanded: "rgba(255,255,255,0.02)", bgInput: "rgba(255,255,255,0.04)",
+        bgChat: "rgba(0,0,0,0.1)", bgMsgUser: "rgba(88,166,255,0.06)", bgMsgAgent: "rgba(255,255,255,0.02)",
+        border: "rgba(255,255,255,0.08)", borderActive: "rgba(88,166,255,0.15)", borderChat: "rgba(88,166,255,0.15)",
+        text: "#E6EDF3", textSecondary: "#B1BAC4", textMuted: "#6E7681", textDim: "#484F58",
+        accent: "#58A6FF", accentBg: "rgba(88,166,255,0.1)",
+        headerBg: "#1A1D21", settingsBg: "#21262D",
+        sbBg: "#3F0E40", sbRail: "#2C0A2E", sbActive: "#1164A3", sbText: "#fff", sbMuted: "rgba(255,255,255,0.7)", sbDim: "rgba(255,255,255,0.4)", sbBorder: "rgba(255,255,255,0.1)", sbBadge: "#CD2553",
+      },
+      light: {
+        bg: "#FFFFFF", bgCard: "rgba(0,0,0,0.02)", bgCardHover: "rgba(88,166,255,0.04)",
+        bgExpanded: "rgba(0,0,0,0.01)", bgInput: "rgba(0,0,0,0.03)",
+        bgChat: "rgba(0,0,0,0.02)", bgMsgUser: "rgba(88,166,255,0.08)", bgMsgAgent: "rgba(0,0,0,0.02)",
+        border: "rgba(0,0,0,0.1)", borderActive: "rgba(88,166,255,0.3)", borderChat: "rgba(88,166,255,0.25)",
+        text: "#1F2328", textSecondary: "#424A53", textMuted: "#656D76", textDim: "#8C959F",
+        accent: "#0969DA", accentBg: "rgba(9,105,218,0.08)",
+        headerBg: "#FFFFFF", settingsBg: "#F6F8FA",
+        sbBg: "#3F0E40", sbRail: "#2C0A2E", sbActive: "#1164A3", sbText: "#fff", sbMuted: "rgba(255,255,255,0.7)", sbDim: "rgba(255,255,255,0.4)", sbBorder: "rgba(255,255,255,0.1)", sbBadge: "#CD2553",
+      },
+    };
 
+    const STATUS_COLORS = {
+      green: { bg: "rgba(46,160,67,0.07)", border: "#2EA043", text: "#2EA043", textDark: "#7EE787" },
+      amber: { bg: "rgba(227,179,65,0.07)", border: "#E3B341", text: "#9A6700", textDark: "#E3B341" },
+      red: { bg: "rgba(248,81,73,0.07)", border: "#F85149", text: "#CF222E", textDark: "#F85149" },
+      done: { bg: "rgba(46,160,67,0.04)", border: "#2EA043", text: "#2EA043", textDark: "#2EA043" },
+      pending: { bg: "rgba(227,179,65,0.04)", border: "#E3B341", text: "#9A6700", textDark: "#E3B341" },
+      auto: { bg: "rgba(88,166,255,0.04)", border: "#58A6FF", text: "#0969DA", textDark: "#58A6FF" },
+      review: { bg: "rgba(240,136,62,0.06)", border: "#F0883E", text: "#BC4C00", textDark: "#F0883E" },
+    };
+    const TC = { 1: "#58A6FF", 2: "#2EA043", 3: "#F0883E" };
+    const TL = { 1: "Read-only", 2: "Act & log", 3: "Needs approval" };
+
+    // =================================================================
+    // DEMO USER — for "My Tasks" filter
+    // =================================================================
+    const CURRENT_USER = "Maya Chen";
+
+    // =================================================================
+    // PAGE DATA (same structure as v4, abbreviated for token space — 
+    // includes all pages with demo-ready chat sequences)
+    // =================================================================
     const PAGES_DATA = {
-
       overview: {
         id: "overview", label: "Project Overview", icon: "ⓘ",
         headerDetail: "Acme CRM · Build Phase · Sprint 4 of 8",
@@ -40,18 +78,19 @@
             sources: ["Jira", "Smartsheet", "PSA"],
             summary: { main: "Sprint 4 · Day 8 of 10", metric: "34 / 42", status: "amber" },
             detail: [
-              { label: "Velocity trend", value: "On pace — averaging 4.2 points/day", status: "green", expandedDetail: "Days 1-5: 5.2 pts/day · Days 6-8: 2.7 pts/day. Decline concentrated in CPQ workstream. Sales Cloud and Data Migration on pace.", sourceLink: "Open in Jira →" },
-              { label: "Carry-over risk", value: "2 stories: ACME-1190, ACME-1195 (CPQ)", status: "amber", expandedDetail: "ACME-1190: Data migration dry run — blocked by environment (resolved). ACME-1195: CPQ price rules — waiting on client decision (CR-009).", sourceLink: "Open in Jira →", actions: [{ label: "View ACME-1190", link: "Jira" }, { label: "View ACME-1195", link: "Jira" }] },
-              { label: "Code coverage", value: "84% — up from 79% last sprint", status: "green", expandedDetail: "Target: 85% by Sprint 5. Biggest gaps in CPQ trigger classes (72%) and batch jobs (68%).", sourceLink: "Open in Jira →" },
-              { label: "Open defects", value: "0 Critical · 3 Medium · 7 Low", status: "green", expandedDetail: "3 Medium bugs all non-blocking, scheduled for Sprint 5. See Issues on Sprint Board for details.", sourceLink: "Open in Jira →" },
-              { label: "CI/CD pipeline", value: "All green — last deploy 2h ago", status: "green", expandedDetail: "12 successful deployments this sprint. 0 rollbacks. Average build time: 4.2 minutes." },
+              { label: "Velocity trend", value: "On pace — averaging 4.2 points/day", status: "green", expandedDetail: "Days 1-5: 5.2 pts/day · Days 6-8: 2.7 pts/day. Decline concentrated in CPQ workstream.", sourceLink: "Open in Jira →" },
+              { label: "Carry-over risk", value: "2 stories: ACME-1190, ACME-1195", status: "amber", expandedDetail: "ACME-1190: Data migration dry run — environment blocker resolved. ACME-1195: CPQ price rules — waiting on CR-009 decision.", sourceLink: "Open in Jira →", actions: [{ label: "View ACME-1195", link: "Jira" }] },
+              { label: "Code coverage", value: "84% — up from 79% last sprint", status: "green", expandedDetail: "Target: 85% by Sprint 5. Gaps in CPQ triggers (72%) and batch jobs (68%).", sourceLink: "Open in Jira →" },
+              { label: "Open defects", value: "0 Critical · 3 Medium · 7 Low", status: "green", expandedDetail: "All medium bugs non-blocking. Scheduled for Sprint 5.", sourceLink: "Open in Jira →" },
             ],
             threads: [
-              { id: "sprint-health-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-                { from: "agent", text: "Sprint 4 is tracking amber — two stories at carry-over risk. ACME-1190 was blocked by an environment issue (resolved yesterday). ACME-1195 has a dependency on client clarification around tiered discount logic.", time: "8:02 AM" },
-                { from: "agent", text: "Recommendation: pair Raj with Sarah on ACME-1195. If resolved by Day 9, both stories can close within sprint.", time: "8:02 AM", actions: [{ label: "Schedule pairing session", link: "Google Calendar" }, { label: "View ACME-1195", link: "Jira" }] },
-                { from: "user", text: "What's the downstream impact if 1195 carries over?", time: "8:15 AM" },
-                { from: "agent", text: "Sprint 5 is planned at 38 pts. Adding 8 from 1195 → 46, above trailing velocity of 42. You'd likely defer ACME-1210 (report builder) to Sprint 6.", time: "8:15 AM", actions: [{ label: "View Sprint 5 backlog", link: "Jira" }] },
+              { id: "sprint-health-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+                { from: "agent", text: "Good morning, Maya. Sprint 4 is tracking amber — two stories at carry-over risk.", time: "8:02 AM", actions: [{ label: "View sprint board", link: "Jira" }] },
+                { from: "agent", text: "ACME-1195 (CPQ price rules) is the key risk. Sarah is blocked on the CR-009 decision. Your PR #249 is in review — no action needed there.", time: "8:02 AM" },
+                { from: "user", text: "Is my code review for PR #247 still needed?", time: "8:10 AM" },
+                { from: "agent", text: "Yes — Raj's PR #247 (contact dedup) has been waiting 14 hours. CI is passing. It's a 347-line change across 3 files. Reviewing it this morning would keep velocity on track.", time: "8:10 AM", actions: [{ label: "Review PR #247", link: "GitHub" }] },
+                { from: "user", text: "Got it, I'll review it before standup. Anything else blocking me today?", time: "8:12 AM" },
+                { from: "agent", text: "Nothing blocking. Your ACME-1182 (hierarchy validation) is on track — Day 2 of estimated 3. The only dependency is the Account.ParentId schema decision (DD-042), which was resolved March 18. You're clear to continue.", time: "8:12 AM", actions: [{ label: "View ACME-1182", link: "Jira" }, { label: "View DD-042", link: "Confluence" }] },
               ]},
               { id: "sprint-health-team", label: "Team", icon: "👥", unread: 0, messages: [
                 { from: "Raj", text: "I can pick up 1190 today once sandbox refreshes. Unblocked by noon.", time: "Yesterday" },
@@ -62,22 +101,16 @@
           {
             id: "risks-blockers", label: "Risks & Blockers", icon: "⚠️",
             sources: ["PSA"],
-            summary: { main: "2 active · 1 aging past SLA · 1 CR pending", status: "amber" },
+            summary: { main: "2 active · 1 aging · 1 CR pending", status: "amber" },
             detail: [
-              { label: "RAID-017", value: "Data migration — client IT Oracle credentials", status: "red", age: "8 days", expandedDetail: "Data migration team needs access credentials to legacy Oracle system. Requires client IT director (Diana Reyes) approval. Lisa Park acting as intermediary. 3 requests sent, no response from IT.", sourceLink: "Open in PSA →", actions: [{ label: "View escalation draft", link: "Confluence" }] },
-              { label: "RAID-021", value: "Sandbox refresh conflicts with offshore window", status: "amber", age: "3 days", expandedDetail: "Refresh window (2-4 AM EST) overlaps with offshore peak hours (11:30 AM - 1:30 PM IST). Workaround: shift refresh to 6 AM EST weekends.", sourceLink: "Open in PSA →" },
-              { label: "CR-009", value: "Tiered discount logic — not in SOW §3.2", status: "amber", age: "1 day", expandedDetail: "Client requested volume-based tiered pricing for Enterprise deals. Estimated impact: $18-24K, 13-18 story points, ~1.5 sprint capacity from Sarah's workstream. Requires steering committee decision.", sourceLink: "Open in PSA →", actions: [{ label: "View impact assessment", link: "Confluence" }, { label: "View SOW §3.2", link: "Google Docs" }] },
+              { label: "RAID-017", value: "Data migration — client IT Oracle credentials", status: "red", age: "8 days", expandedDetail: "Needs Oracle credentials from Diana Reyes (client IT). 3 requests unanswered.", sourceLink: "Open in PSA →", actions: [{ label: "View escalation draft", link: "Confluence" }] },
+              { label: "RAID-021", value: "Sandbox refresh conflicts with offshore", status: "amber", age: "3 days", expandedDetail: "Refresh window overlaps offshore peak hours. Workaround: shift to weekends.", sourceLink: "Open in PSA →" },
+              { label: "CR-009", value: "Tiered discount logic — not in SOW §3.2", status: "amber", age: "1 day", expandedDetail: "Estimated $18-24K, 13-18 story points. Steering committee decision Thursday.", sourceLink: "Open in PSA →", actions: [{ label: "View impact assessment", link: "Confluence" }] },
             ],
             threads: [
-              { id: "risks-agent", label: "Agent", icon: "🤖", unread: 2, messages: [
-                { from: "agent", text: "RAID-017 open 8 days. Data migration team needs Oracle credentials — requires client IT approval. Impact if unresolved by Sprint 5: dry run #2 shifts 2 weeks, compressing UAT.", time: "8:02 AM", actions: [{ label: "View in PSA", link: "PSA" }] },
-                { from: "user", text: "Draft an escalation for steering committee", time: "8:30 AM" },
-                { from: "agent", text: "Draft ready:\n\n\"RAID-017: Oracle credentials pending 8 days. Without resolution by April 4, dry run #2 shifts from Week 10 to 12, compressing UAT from 3 to 2 weeks. Requesting client IT commit by March 28.\"", time: "8:31 AM", tier: 3, actions: [{ label: "Edit in Confluence", link: "Confluence" }, { label: "Copy to Slack message", link: "Slack" }] },
-              ]},
-              { id: "risks-client", label: "Lisa (Client)", icon: "🔗", unread: 1, messages: [
-                { from: "Lisa", text: "Flagged Oracle access with IT director. She's out until Wednesday — pushing for Thursday.", time: "Yesterday" },
-                { from: "Alex", text: "Thursday keeps us on track. Past that we adjust the schedule.", time: "Yesterday" },
-                { from: "Lisa", text: "Confirming by EOD Wednesday.", time: "Today" },
+              { id: "risks-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+                { from: "agent", text: "RAID-017 is the highest-risk item. If unresolved by Sprint 5, UAT compresses from 3 to 2 weeks.", time: "8:02 AM", actions: [{ label: "View in PSA", link: "PSA" }] },
+                { from: "agent", text: "CR-009 impact assessment is ready for the steering committee Thursday.", time: "8:03 AM", actions: [{ label: "View assessment", link: "Confluence" }] },
               ]},
             ],
           },
@@ -86,18 +119,16 @@
             sources: ["PSA"],
             summary: { main: "6 active · 78% utilization · 1 flag", status: "green" },
             detail: [
-              { label: "Maya Chen", value: "ACME-1182 in progress — no blockers", status: "green", role: "Developer", expandedDetail: "Sprint 1-8 · 76% utilization · Assigned: ACME-1182 (hierarchy validation). On track. PR #249 (lead conversion) in review.", sourceLink: "View in PSA →" },
-              { label: "Raj Patel", value: "PR #247 review — starting ACME-1190", status: "green", role: "Developer", expandedDetail: "Sprint 1-8 · 80% utilization · PR #247 (contact dedup) awaiting review 14h. Starting ACME-1190 (data migration) today.", sourceLink: "View in PSA →" },
-              { label: "Sarah Kim", value: "Velocity declining — needs discount clarification", status: "amber", role: "Developer", expandedDetail: "Sprint 3-8 · 95% utilization (above 80% target). Throughput down 30% Days 6-8. Blocked on CR-009 decision. ACME-1195 stalled since Day 5. PTO April 7-11.", sourceLink: "View in PSA →", actions: [{ label: "View ACME-1195", link: "Jira" }] },
-              { label: "Chen Wei", value: "Integration tests at 84%", status: "green", role: "QA", expandedDetail: "Sprint 1-8 · 74% utilization · Integration test coverage at 84%, targeting 90% by Friday. Waiting on contact dedup merge.", sourceLink: "View in PSA →" },
-              { label: "Priya Sharma", value: "Training materials for Sprint 4", status: "green", role: "OCM", expandedDetail: "Sprint 1-8 · 68% utilization · Building role-based training guides for opportunity management and case routing features.", sourceLink: "View in PSA →" },
-              { label: "James Liu", value: "Data mapping validation complete", status: "green", role: "Data", expandedDetail: "Sprint 2-6 · 72% utilization · Rolling off after Sprint 6. If RAID-017 extends dry runs, availability needs re-evaluation.", sourceLink: "View in PSA →" },
+              { label: "Maya Chen", value: "ACME-1182 in progress — no blockers", status: "green", role: "Developer", expandedDetail: "76% util · ACME-1182 (hierarchy validation) Day 2/3. PR #249 in review.", sourceLink: "View in PSA →" },
+              { label: "Raj Patel", value: "PR #247 review — starting ACME-1190", status: "green", role: "Developer", expandedDetail: "80% util · PR #247 awaiting review 14h. Starting data migration validation.", sourceLink: "View in PSA →" },
+              { label: "Sarah Kim", value: "Velocity declining — needs discount clarification", status: "amber", role: "Developer", expandedDetail: "95% util · Throughput down 30%. Blocked on CR-009. PTO Apr 7-11.", sourceLink: "View in PSA →", actions: [{ label: "View ACME-1195", link: "Jira" }] },
+              { label: "Chen Wei", value: "Integration tests at 84%", status: "green", role: "QA", expandedDetail: "74% util · Targeting 90% coverage by Friday.", sourceLink: "View in PSA →" },
+              { label: "Priya Sharma", value: "Training materials for Sprint 4", status: "green", role: "OCM", expandedDetail: "68% util · Opportunity management and case routing guides.", sourceLink: "View in PSA →" },
+              { label: "James Liu", value: "Data mapping validation complete", status: "green", role: "Data", expandedDetail: "72% util · Rolling off Sprint 6. May need extension if RAID-017 extends.", sourceLink: "View in PSA →" },
             ],
             threads: [
-              { id: "team-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-                { from: "agent", text: "Pattern detected: Sarah's throughput dropped 30% over 3 days. Correlates with standup mention of discount logic clarification. Connects to CR-009 — she may be waiting on a decision, not a technical blocker.", time: "8:02 AM", actions: [{ label: "View Sarah in PSA", link: "PSA" }, { label: "View ACME-1195", link: "Jira" }] },
-                { from: "user", text: "Set up pairing session with Raj tomorrow", time: "10:15 AM" },
-                { from: "agent", text: "Done. Calendar invite sent to Sarah and Raj, 9-10 AM. Included CR-009 context.", time: "10:15 AM", tier: 2, actions: [{ label: "View calendar invite", link: "Google Calendar" }] },
+              { id: "team-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+                { from: "agent", text: "Sarah's throughput dropped 30% — connected to CR-009 blocker. Pairing session with Raj scheduled for tomorrow.", time: "8:02 AM", actions: [{ label: "View pairing session", link: "Google Calendar" }] },
               ]},
             ],
           },
@@ -106,30 +137,30 @@
             sources: ["PMO Toolkit"],
             summary: { main: "3 made · 1 pending", status: "green" },
             detail: [
-              { label: "DD-042", value: "Account hierarchy: 5 levels max", status: "done", date: "Mar 18", expandedDetail: "Rationale: Salesforce performance degrades beyond 5 levels of recursive hierarchy. Approved at Design Authority review. Documented in Solution Design Document §4.2.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "DD-043", value: "Contact dedup: fuzzy match email + phone", status: "done", date: "Mar 20", expandedDetail: "Configurable threshold (85% default). Handles partial matches and common misspellings. Batch + real-time trigger approach.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "DD-044", value: "CPQ approvals: 3-tier escalation", status: "done", date: "Mar 21", expandedDetail: "Tier 1: Manager (<$50K), Tier 2: Director (<$250K), Tier 3: VP (>$250K). Replaces legacy email-based approvals.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "DD-045", value: "Tiered discounts — awaiting disposition", status: "pending", date: "Pending", expandedDetail: "Tied to CR-009. Two options: approve from contingency ($18-24K) or defer to Phase 2. Steering committee decision Thursday.", sourceLink: "Open in PMO Toolkit →", actions: [{ label: "View cost-benefit analysis", link: "Confluence" }] },
+              { label: "DD-042", value: "Account hierarchy: 5 levels max", status: "done", date: "Mar 18", expandedDetail: "Performance constraint. Documented in SDD §4.2.", sourceLink: "Open in PMO Toolkit →" },
+              { label: "DD-043", value: "Contact dedup: fuzzy match email + phone", status: "done", date: "Mar 20", expandedDetail: "85% threshold. Batch + real-time trigger.", sourceLink: "Open in PMO Toolkit →" },
+              { label: "DD-044", value: "CPQ approvals: 3-tier escalation", status: "done", date: "Mar 21", expandedDetail: "Manager <$50K, Director <$250K, VP >$250K.", sourceLink: "Open in PMO Toolkit →" },
+              { label: "DD-045", value: "Tiered discounts — awaiting disposition", status: "pending", date: "Pending", expandedDetail: "Approve from contingency or defer to Phase 2. Thursday decision.", sourceLink: "Open in PMO Toolkit →", actions: [{ label: "View analysis", link: "Confluence" }] },
             ],
             threads: [
               { id: "dec-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-                { from: "agent", text: "DD-045 pending — tied to CR-009. Steering committee decides: approve from contingency ($18-24K) or defer to Phase 2.", time: "8:03 AM", actions: [{ label: "View in PMO Toolkit", link: "PMO Toolkit" }, { label: "View cost-benefit analysis", link: "Confluence" }] },
+                { from: "agent", text: "DD-045 pending — steering committee Thursday. Both options analyzed.", time: "8:03 AM", actions: [{ label: "View in PMO Toolkit", link: "PMO Toolkit" }] },
               ]},
             ],
           },
           {
             id: "value-tracker", label: "Value Tracker", icon: "🎯",
             sources: ["PMO Toolkit"],
-            summary: { main: "4 values tracked · 3 on track · 1 at risk", status: "amber" },
+            summary: { main: "4 values · 3 on track · 1 at risk", status: "amber" },
             detail: [
-              { label: "Pipeline visibility", value: "On track — Sales Cloud config 90% complete", status: "green", expandedDetail: "Target: single source of truth for pipeline by go-live. Opportunity page layouts, dashboards, and reports complete. Remaining: forecasting module in Sprint 5.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "Forecast accuracy", value: "On track — CPQ automation reducing manual entry", status: "green", expandedDetail: "Target: 20% improvement in forecast accuracy. CPQ price books and approval flows reducing manual quote errors. Measurement baseline established.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "Service response time", value: "On track — Case routing rules in UAT", status: "green", expandedDetail: "Target: 30% reduction in case response time. Automated assignment rules, escalation paths, and SLA tracking configured. UAT begins Sprint 5.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "Cross-sell revenue", value: "At risk — depends on tiered pricing (CR-009)", status: "amber", expandedDetail: "Target: 15% cross-sell increase. Tiered pricing model (CR-009) is a prerequisite for product recommendation engine in Phase 2. If deferred, value realization shifts ~3 months.", sourceLink: "Open in PMO Toolkit →", actions: [{ label: "View CR-009 impact", link: "Confluence" }] },
+              { label: "Pipeline visibility", value: "On track — Sales Cloud 90% complete", status: "green", expandedDetail: "Remaining: forecasting module Sprint 5.", sourceLink: "Open in PMO Toolkit →" },
+              { label: "Forecast accuracy", value: "On track — CPQ reducing manual entry", status: "green", sourceLink: "Open in PMO Toolkit →" },
+              { label: "Service response time", value: "On track — Case routing in UAT", status: "green", sourceLink: "Open in PMO Toolkit →" },
+              { label: "Cross-sell revenue", value: "At risk — depends on CR-009", status: "amber", expandedDetail: "Tiered pricing prerequisite for Phase 2 recommendations. If deferred, shifts ~3 months.", sourceLink: "Open in PMO Toolkit →" },
             ],
             threads: [
               { id: "value-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-                { from: "agent", text: "Cross-sell revenue value is at risk because the tiered pricing model (CR-009) is a prerequisite for the product recommendation engine planned for Phase 2. If CR-009 is deferred, this value realization shifts by ~3 months.", time: "8:05 AM", actions: [{ label: "View in PMO Toolkit", link: "PMO Toolkit" }] },
+                { from: "agent", text: "Cross-sell revenue at risk — CR-009 is the dependency.", time: "8:05 AM", actions: [{ label: "View in PMO Toolkit", link: "PMO Toolkit" }] },
               ]},
             ],
           },
@@ -138,17 +169,17 @@
             sources: ["Open AI Log"],
             summary: { main: "12 actions today · 2 pending review", status: "green" },
             detail: [
-              { label: "9:45 AM", value: "Generated standup summary from Jira", status: "auto", tier: 2, expandedDetail: "Compiled Jira activity for 6 team members into async standup format. Posted to #acme-proj-alpha." },
-              { label: "9:15 AM", value: "Drafted steering committee report", status: "review", tier: 3, expandedDetail: "Assembled data from Jira (velocity), Smartsheet (budget), RAID log, and Slack threads. Awaiting PM review.", actions: [{ label: "Review in Confluence", link: "Confluence" }] },
-              { label: "8:30 AM", value: "Pre-assessed CR-009 impact", status: "auto", tier: 2, expandedDetail: "Estimated effort (13-18 SP), timeline (1.5 sprints), and budget ($18-24K) by comparing to similar CR-004." },
-              { label: "8:02 AM", value: "Compiled morning briefings (6 members)", status: "auto", tier: 1, expandedDetail: "Personalized briefings filtered by role and current sprint assignments. Delivered to each team member's DM." },
-              { label: "7:30 AM", value: "Detected velocity decline (Sarah/CPQ)", status: "auto", tier: 1, expandedDetail: "Cross-referenced Jira throughput data with standup transcripts. Identified correlation between velocity drop and CR-009 dependency." },
+              { label: "9:45 AM", value: "Generated standup summary from Jira", status: "auto", tier: 2 },
+              { label: "9:15 AM", value: "Drafted steering committee report", status: "review", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
+              { label: "8:30 AM", value: "Pre-assessed CR-009 impact", status: "auto", tier: 2 },
+              { label: "8:02 AM", value: "Compiled morning briefings (6 members)", status: "auto", tier: 1 },
+              { label: "7:30 AM", value: "Detected velocity decline (Sarah/CPQ)", status: "auto", tier: 1 },
             ],
             threads: [
               { id: "agent-log-thread", label: "Audit Trail", icon: "📋", unread: 0, messages: [
-                { from: "agent", text: "Tier 1-2 actions ran automatically. Two Tier 3 items queued for your review:", time: "9:45 AM" },
-                { from: "agent", text: "1. Steering committee draft — assembled from Jira, Smartsheet, RAID log, and Slack threads.", time: "9:15 AM", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
-                { from: "agent", text: "2. Client response to CR-009 — two draft options prepared (formal CR vs Phase 2 deferral).", time: "8:35 AM", tier: 3, actions: [{ label: "Review in #acme-external", link: "Slack" }] },
+                { from: "agent", text: "Tier 1-2 actions ran automatically. Two Tier 3 items queued:", time: "9:45 AM" },
+                { from: "agent", text: "1. Steering committee draft ready for review.", time: "9:15 AM", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
+                { from: "agent", text: "2. CR-009 client response options drafted.", time: "8:35 AM", tier: 3, actions: [{ label: "Review in #acme-external", link: "Slack" }] },
               ]},
             ],
           },
@@ -157,78 +188,43 @@
 
       sprint: {
         id: "sprint", label: "Sprint Board", icon: "#",
-        headerDetail: "Sprint 4 · 3 days remaining · Toggle: All Stories",
+        headerDetail: "Sprint 4 · 3 days remaining",
         cards: [
-          {
-            id: "sb-todo", label: "To Do", icon: "📋",
-            sources: ["Jira"],
-            summary: { main: "4 stories · 16 points", status: "amber" },
-            detail: [
-              { label: "ACME-1192", value: "Report dashboard — default filters", status: "amber", role: "3 pts", expandedDetail: "Assigned: unassigned. Dependencies: none. Acceptance criteria defined. Ready for pickup.", sourceLink: "Open in Jira →" },
-              { label: "ACME-1194", value: "Email template — opportunity notifications", status: "green", role: "2 pts", expandedDetail: "Assigned: unassigned. Simple template with merge fields. Estimated 0.5 day effort.", sourceLink: "Open in Jira →" },
-              { label: "ACME-1196", value: "Data validation — Account phone format", status: "green", role: "3 pts", expandedDetail: "Assigned: unassigned. Validation rule + batch cleanup of existing data. Requires James for data review.", sourceLink: "Open in Jira →" },
-              { label: "ACME-1198", value: "Permission set — regional manager access", status: "green", role: "8 pts", expandedDetail: "Assigned: unassigned. Complex permission matrix across 4 profiles and 3 record types. May not complete in 3 remaining days.", sourceLink: "Open in Jira →" },
-            ],
-            threads: [{ id: "sb-todo-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "4 stories remain in To Do with 3 days left. ACME-1198 (8 pts) is the largest — may need to evaluate if it can start and complete in time, or flag for carry-over early.", time: "8:02 AM", actions: [{ label: "View ACME-1198", link: "Jira" }] },
-            ]}],
-          },
-          {
-            id: "sb-progress", label: "In Progress", icon: "🔄",
-            sources: ["Jira"],
-            summary: { main: "3 stories · 13 points", status: "green" },
-            detail: [
-              { label: "ACME-1182", value: "Account hierarchy validation — Maya Chen", status: "green", role: "5 pts", expandedDetail: "Day 2 of estimated 3. Apex trigger + test class in progress. No blockers.", sourceLink: "Open in Jira →" },
-              { label: "ACME-1190", value: "Data migration dry run validation — Raj Patel", status: "green", role: "5 pts", expandedDetail: "Starting today after sandbox refresh. Validates record counts, field-level accuracy, and parent-child relationships.", sourceLink: "Open in Jira →" },
-              { label: "ACME-1195", value: "CPQ tiered price rules — Sarah Kim", status: "amber", role: "3 pts", expandedDetail: "In progress 4 days. No status update since Day 5. Blocked on CR-009 client decision regarding tiered discount logic.", sourceLink: "Open in Jira →", actions: [{ label: "View CR-009", link: "PSA" }] },
-            ],
-            threads: [{ id: "sb-progress-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "ACME-1195 has been in progress for 4 days with no status update since Day 5. This is the carry-over risk tied to Sarah's velocity decline and CR-009.", time: "8:02 AM", actions: [{ label: "View ACME-1195", link: "Jira" }, { label: "Message Sarah", link: "Slack" }] },
-            ]}],
-          },
-          {
-            id: "sb-review", label: "In Review", icon: "👁️",
-            sources: ["Jira"],
-            summary: { main: "2 stories · 8 points", status: "green" },
-            detail: [
-              { label: "ACME-1186", value: "Contact dedup logic — PR #247 — Raj Patel", status: "green", role: "5 pts", expandedDetail: "PR #247: +347/-89 lines across 3 files. CI passing. Awaiting review 14 hours. Fuzzy matching on email + phone.", sourceLink: "Open in Jira →", actions: [{ label: "Review PR #247", link: "GitHub" }] },
-              { label: "ACME-1188", value: "Lead conversion flow — PR #249 — Maya Chen", status: "green", role: "3 pts", expandedDetail: "PR #249: Flow-based lead conversion with field mapping. CI passing. Submitted 6 hours ago.", sourceLink: "Open in Jira →", actions: [{ label: "Review PR #249", link: "GitHub" }] },
-            ],
-            threads: [{ id: "sb-review-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "Both PRs have passing CI. PR #247 has been awaiting review for 14 hours — consider prioritizing to keep velocity up.", time: "8:02 AM", actions: [{ label: "Review PR #247", link: "GitHub" }] },
-            ]}],
-          },
-          {
-            id: "sb-done", label: "Done", icon: "✅",
-            sources: ["Jira"],
-            summary: { main: "8 stories · 34 points", metric: "34 pts", status: "green" },
-            detail: [
-              { label: "ACME-1180", value: "Opportunity page layout redesign", status: "done", role: "5 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1181", value: "Account record type configuration", status: "done", role: "3 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1183", value: "Quote PDF template", status: "done", role: "5 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1184", value: "Dashboard — pipeline by stage", status: "done", role: "3 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1185", value: "Email alert — stale opportunity", status: "done", role: "2 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1187", value: "Case assignment rules", status: "done", role: "5 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1189", value: "Contact merge batch job", status: "done", role: "8 pts", sourceLink: "Open in Jira →" },
-              { label: "ACME-1191", value: "Integration — ERP sync", status: "done", role: "3 pts", sourceLink: "Open in Jira →" },
-            ],
-            threads: [{ id: "sb-done-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "34 of 42 points completed (81%). Strong throughput on Days 1-5. The slowdown on Days 6-8 is concentrated in the CPQ workstream.", time: "8:02 AM" },
-            ]}],
-          },
-          {
-            id: "sb-issues", label: "Issues", icon: "🐛",
-            sources: ["Jira"],
-            summary: { main: "3 medium · 7 low · 0 critical", status: "green" },
-            detail: [
-              { label: "BUG-342", value: "Quote line item sort order incorrect on PDF", status: "amber", role: "Medium", expandedDetail: "Quote PDF renders line items alphabetically instead of by sort order field. Non-blocking — cosmetic issue. Fix scheduled Sprint 5.", sourceLink: "Open in Jira →" },
-              { label: "BUG-343", value: "Dashboard filter resets on page refresh", status: "amber", role: "Medium", expandedDetail: "User-selected filters not persisting across page loads. Likely a Lightning component state issue. Non-blocking.", sourceLink: "Open in Jira →" },
-              { label: "BUG-344", value: "Email template missing merge field for Account.Owner", status: "amber", role: "Medium", expandedDetail: "Opportunity notification template references Account.Owner but field isn't included in the email template's available fields. Quick fix.", sourceLink: "Open in Jira →" },
-            ],
-            threads: [{ id: "sb-issues-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "All 3 medium bugs are non-blocking and scheduled for Sprint 5. No critical defects open — this is a strong quality signal.", time: "8:02 AM" },
-            ]}],
-          },
+          { id: "sb-todo", label: "To Do", icon: "📋", sources: ["Jira"], summary: { main: "4 stories · 16 pts", status: "amber" }, detail: [
+            { label: "ACME-1192", value: "Report dashboard — default filters", status: "amber", role: "3 pts", expandedDetail: "Unassigned. Ready for pickup.", sourceLink: "Open in Jira →" },
+            { label: "ACME-1194", value: "Email template — opportunity notifications", status: "green", role: "2 pts", expandedDetail: "Unassigned. ~0.5 day effort.", sourceLink: "Open in Jira →" },
+            { label: "ACME-1196", value: "Data validation — Account phone format", status: "green", role: "3 pts", sourceLink: "Open in Jira →" },
+            { label: "ACME-1198", value: "Permission set — regional manager access", status: "green", role: "8 pts", expandedDetail: "Complex permission matrix. May not complete in 3 days.", sourceLink: "Open in Jira →" },
+          ], threads: [{ id: "sb-todo-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "ACME-1198 (8 pts) may not complete in 3 remaining days. Consider flagging for carry-over.", time: "8:02 AM", actions: [{ label: "View ACME-1198", link: "Jira" }] },
+          ]}]},
+          { id: "sb-progress", label: "In Progress", icon: "🔄", sources: ["Jira"], summary: { main: "3 stories · 13 pts", status: "green" }, detail: [
+            { label: "ACME-1182", value: "Account hierarchy validation — Maya Chen", status: "green", role: "5 pts", expandedDetail: "Day 2 of 3. Apex trigger + test class.", sourceLink: "Open in Jira →" },
+            { label: "ACME-1190", value: "Data migration dry run — Raj Patel", status: "green", role: "5 pts", sourceLink: "Open in Jira →" },
+            { label: "ACME-1195", value: "CPQ tiered price rules — Sarah Kim", status: "amber", role: "3 pts", expandedDetail: "Stalled 4 days. Blocked on CR-009.", sourceLink: "Open in Jira →" },
+          ], threads: [{ id: "sb-progress-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+            { from: "agent", text: "ACME-1195 stalled 4 days. Carry-over risk.", time: "8:02 AM", actions: [{ label: "View ACME-1195", link: "Jira" }] },
+          ]}]},
+          { id: "sb-review", label: "In Review", icon: "👁️", sources: ["Jira"], summary: { main: "2 stories · 8 pts", status: "green" }, detail: [
+            { label: "ACME-1186", value: "Contact dedup — PR #247 — Raj Patel", status: "green", role: "5 pts", expandedDetail: "CI passing. Awaiting review 14h.", sourceLink: "Open in Jira →", actions: [{ label: "Review PR #247", link: "GitHub" }] },
+            { label: "ACME-1188", value: "Lead conversion — PR #249 — Maya Chen", status: "green", role: "3 pts", sourceLink: "Open in Jira →" },
+          ], threads: [{ id: "sb-review-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "PR #247 waiting 14 hours. Prioritize to keep velocity up.", time: "8:02 AM", actions: [{ label: "Review PR #247", link: "GitHub" }] },
+          ]}]},
+          { id: "sb-done", label: "Done", icon: "✅", sources: ["Jira"], summary: { main: "8 stories · 34 pts", metric: "34 pts", status: "green" }, detail: [
+            { label: "ACME-1180", value: "Opportunity page layout redesign", status: "done", role: "5 pts", sourceLink: "Open in Jira →" },
+            { label: "ACME-1183", value: "Quote PDF template", status: "done", role: "5 pts", sourceLink: "Open in Jira →" },
+            { label: "ACME-1187", value: "Case assignment rules", status: "done", role: "5 pts", sourceLink: "Open in Jira →" },
+            { label: "ACME-1189", value: "Contact merge batch job", status: "done", role: "8 pts", sourceLink: "Open in Jira →" },
+          ], threads: [{ id: "sb-done-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "34/42 points complete (81%). Slowdown concentrated in CPQ workstream.", time: "8:02 AM" },
+          ]}]},
+          { id: "sb-issues", label: "Issues", icon: "🐛", sources: ["Jira"], summary: { main: "3 med · 0 crit", status: "green" }, detail: [
+            { label: "BUG-342", value: "Quote line item sort order on PDF", status: "amber", role: "Medium", sourceLink: "Open in Jira →" },
+            { label: "BUG-343", value: "Dashboard filter resets on refresh", status: "amber", role: "Medium", sourceLink: "Open in Jira →" },
+          ], threads: [{ id: "sb-issues-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "All medium bugs non-blocking. Scheduled Sprint 5.", time: "8:02 AM" },
+          ]}]},
         ],
       },
 
@@ -236,113 +232,51 @@
         id: "people", label: "People", icon: "👥",
         headerDetail: "Team health, assignments & calendar",
         cards: [
-          {
-            id: "health-check", label: "Health Check", icon: "💚",
-            sources: ["Open AI Log"],
-            summary: { main: "Internal: Good · Client: 1 concern", status: "green" },
-            detail: [
-              { label: "Team morale", value: "Stable — retro sentiment positive 3 sprints running", status: "green", expandedDetail: "Retrospective NPS: Sprint 2 (72), Sprint 3 (78), Sprint 4 (81). Upward trend. Top positive themes: team collaboration, clear sprint goals." },
-              { label: "Workload balance", value: "Sarah at 95% util — above 80% target", status: "amber", expandedDetail: "Sarah Kim is the only team member above target utilization. She's also the single point of CPQ knowledge. Pairing session with Raj tomorrow will help offload and cross-train.", actions: [{ label: "View Sarah in PSA", link: "PSA" }] },
-              { label: "Client engagement", value: "Lisa responsive, IT director unresponsive on RAID-017", status: "amber", expandedDetail: "Lisa Park: 100% sprint demo attendance, avg 2h Slack response time. Diana Reyes (IT): 3 unanswered requests over 8 days on Oracle access.", actions: [{ label: "View RAID-017", link: "PSA" }] },
-              { label: "Knowledge risk", value: "CPQ knowledge concentrated in Sarah — no backup", status: "amber", expandedDetail: "Sarah is the only developer with CPQ experience. If her PTO (Apr 7-11) overlaps with unfinished CPQ work, Sprint 5 has no CPQ owner." },
-            ],
-            threads: [{ id: "health-check-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "Two concerns flagged: Sarah is both over-utilized and the single point of CPQ knowledge. The pairing session with Raj tomorrow addresses both — it offloads work and cross-trains simultaneously.", time: "8:02 AM", actions: [{ label: "View pairing session", link: "Google Calendar" }] },
-              { from: "agent", text: "Client-side: Lisa Park is engaged and responsive. The blocker is her IT director — RAID-017 is a client organizational issue, not a relationship issue.", time: "8:02 AM", actions: [{ label: "View RAID-017 escalation", link: "Confluence" }] },
-            ]}],
-          },
-          {
-            id: "people-team", label: "Team", icon: "👤",
-            sources: ["Open AI Log"],
-            summary: { main: "6 internal members", status: "green" },
-            detail: [
-              { label: "Maya Chen", role: "Developer", value: "76% util · No alerts", status: "green", expandedDetail: "Sprint 1-8 · Active stories: ACME-1182 (in progress), PR #249 (in review). On pace. No concerns.", sourceLink: "View in PSA →" },
-              { label: "Raj Patel", role: "Developer", value: "80% util · No alerts", status: "green", expandedDetail: "Sprint 1-8 · PR #247 awaiting review (14h). Starting ACME-1190 today. Scheduled for pairing with Sarah tomorrow.", sourceLink: "View in PSA →" },
-              { label: "Sarah Kim", role: "Developer", value: "95% util · Overloaded", status: "amber", expandedDetail: "Sprint 3-8 · Velocity down 30% (Days 6-8). Blocked on CR-009. ACME-1195 stalled Day 5. PTO Apr 7-11. CPQ single point of knowledge.", sourceLink: "View in PSA →", actions: [{ label: "View ACME-1195", link: "Jira" }] },
-              { label: "Chen Wei", role: "QA Engineer", value: "74% util · No alerts", status: "green", expandedDetail: "Sprint 1-8 · Integration test coverage at 84%, targeting 90% by Friday. Waiting on contact dedup merge (PR #247).", sourceLink: "View in PSA →" },
-              { label: "Priya Sharma", role: "Change Mgmt", value: "68% util · No alerts", status: "green", expandedDetail: "Sprint 1-8 · Building training guides for opportunity management and case routing. Materials on track for Sprint 5 UAT prep.", sourceLink: "View in PSA →" },
-              { label: "James Liu", role: "Data Migration", value: "72% util · Rolling off Sprint 6", status: "green", expandedDetail: "Sprint 2-6 · Data mapping complete. Dry run #1 done. If RAID-017 extends, may need availability extension beyond Sprint 6.", sourceLink: "View in PSA →" },
-            ],
-            threads: [{ id: "people-team-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "James Liu is scheduled to roll off after Sprint 6. If data migration dry runs extend (RAID-017 risk), his availability may need to be re-evaluated.", time: "8:03 AM", actions: [{ label: "Flag to People Leader", link: "PSA" }] },
-            ]}],
-          },
-          {
-            id: "people-client", label: "Client", icon: "🏢",
-            sources: ["Open AI Log"],
-            summary: { main: "3 active client contacts", status: "green" },
-            detail: [
-              { label: "Lisa Park", role: "Product Owner", value: "Responsive · Primary decision maker", status: "green", expandedDetail: "100% sprint demo attendance. Avg Slack response: 2 hours. Makes day-to-day scope and priority decisions. Key relationship for CR-009 and RAID-017 intermediary." },
-              { label: "Tom Harris", role: "Exec Sponsor", value: "Monthly check-ins · Engaged", status: "green", expandedDetail: "Monthly steering committee participant. Approves budget and scope changes. May need to be engaged directly on RAID-017 if Diana Reyes remains unresponsive." },
-              { label: "Diana Reyes", role: "IT Director", value: "Unresponsive on RAID-017 · Escalation needed", status: "red", expandedDetail: "3 requests sent over 8 days regarding Oracle access credentials. No response. Lisa acting as intermediary. Out of office until Wednesday. Deadline: Thursday.", actions: [{ label: "View RAID-017", link: "PSA" }, { label: "Draft escalation to Tom", link: "Confluence" }] },
-            ],
-            threads: [{ id: "people-client-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "Diana Reyes has not responded to 3 requests regarding Oracle access (RAID-017). Lisa is acting as intermediary. Consider requesting Tom Harris (sponsor) make a direct ask if Thursday deadline is missed.", time: "8:03 AM", actions: [{ label: "Draft message to Tom", link: "Slack" }] },
-            ]}],
-          },
-          {
-            id: "people-calendar", label: "Calendar", icon: "📅",
-            sources: ["Google Calendar"],
-            summary: { main: "2 critical dates this week", status: "amber" },
-            detail: [
-              { label: "Mar 27 (Thu)", value: "Steering committee — CR-009 + RAID-017 decisions", status: "amber", expandedDetail: "2:00 PM · 1 hour · Attendees: Tom Harris, Lisa Park, Alex Torres. Agenda: CR-009 disposition, RAID-017 escalation, Sprint 4 status.", sourceLink: "Open in Google Calendar →", actions: [{ label: "Review prep deck", link: "Confluence" }] },
-              { label: "Mar 28 (Fri)", value: "Sprint 4 demo — confirm narrative with leads", status: "green", expandedDetail: "10:00 AM · 1 hour · Demo: Sales Cloud (Maya), Data Migration (Raj), CPQ (Sarah if unblocked). Narrative not yet confirmed.", sourceLink: "Open in Google Calendar →" },
-              { label: "Mar 31 (Mon)", value: "Sprint 5 planning — backlog grooming needed", status: "green", expandedDetail: "Full day · 6 stories estimated, 2 need refinement. Pre-read shared. CR-009 decision may change Sprint 5 scope.", sourceLink: "Open in Google Calendar →" },
-              { label: "Apr 7-11", value: "Sarah Kim PTO — CPQ gap if 1195 unresolved", status: "amber", expandedDetail: "Full week PTO. If ACME-1195 and CPQ knowledge transfer aren't complete before April 7, Sprint 5 CPQ work has no owner.", actions: [{ label: "View Sarah in PSA", link: "PSA" }] },
-              { label: "Apr 14", value: "Data migration dry run #2 (if RAID-017 resolved)", status: "amber", expandedDetail: "Depends on Oracle access credentials. If RAID-017 resolved by April 4, dry run proceeds on schedule. Otherwise shifts to Week 12.", actions: [{ label: "View RAID-017", link: "PSA" }] },
-            ],
-            threads: [{ id: "calendar-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "Sarah's PTO April 7-11 creates urgency around ACME-1195 and CPQ knowledge transfer. If the pairing session with Raj goes well, this risk is mitigated.", time: "8:04 AM", actions: [{ label: "View pairing session", link: "Google Calendar" }] },
-            ]}],
-          },
+          { id: "health-check", label: "Health Check", icon: "💚", sources: ["Open AI Log"], summary: { main: "Internal: Good · Client: 1 concern", status: "green" }, detail: [
+            { label: "Team morale", value: "Stable — positive 3 sprints running", status: "green", expandedDetail: "Retro NPS: Sprint 2 (72), Sprint 3 (78), Sprint 4 (81)." },
+            { label: "Workload balance", value: "Sarah at 95% — above 80% target", status: "amber", expandedDetail: "Single point of CPQ knowledge. Pairing session tomorrow.", actions: [{ label: "View in PSA", link: "PSA" }] },
+            { label: "Client engagement", value: "Lisa responsive, IT director unresponsive", status: "amber", expandedDetail: "Diana Reyes: 3 unanswered requests over 8 days.", actions: [{ label: "View RAID-017", link: "PSA" }] },
+            { label: "Knowledge risk", value: "CPQ concentrated in Sarah — no backup", status: "amber", expandedDetail: "PTO Apr 7-11 creates gap if 1195 unresolved." },
+          ], threads: [{ id: "hc-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+            { from: "agent", text: "Two concerns: Sarah's utilization and CPQ knowledge concentration. Pairing session with Raj addresses both.", time: "8:02 AM", actions: [{ label: "View session", link: "Google Calendar" }] },
+          ]}]},
+          { id: "people-team", label: "Team", icon: "👤", sources: ["Open AI Log"], summary: { main: "6 internal members", status: "green" }, detail: [
+            { label: "Maya Chen", role: "Developer", value: "76% util · No alerts", status: "green", expandedDetail: "ACME-1182 in progress. PR #249 in review.", sourceLink: "View in PSA →" },
+            { label: "Raj Patel", role: "Developer", value: "80% util · No alerts", status: "green", expandedDetail: "PR #247 awaiting review. Starting ACME-1190.", sourceLink: "View in PSA →" },
+            { label: "Sarah Kim", role: "Developer", value: "95% util · Overloaded", status: "amber", expandedDetail: "Velocity down 30%. Blocked CR-009. PTO Apr 7-11.", sourceLink: "View in PSA →", actions: [{ label: "View ACME-1195", link: "Jira" }] },
+            { label: "Chen Wei", role: "QA Engineer", value: "74% util · No alerts", status: "green", sourceLink: "View in PSA →" },
+            { label: "Priya Sharma", role: "Change Mgmt", value: "68% util · No alerts", status: "green", sourceLink: "View in PSA →" },
+            { label: "James Liu", role: "Data Migration", value: "72% util · Rolling off S6", status: "green", sourceLink: "View in PSA →" },
+          ], threads: [{ id: "pt-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "James rolling off Sprint 6. If RAID-017 extends dry runs, may need extension.", time: "8:03 AM", actions: [{ label: "Flag to People Leader", link: "PSA" }] },
+          ]}]},
+          { id: "people-calendar", label: "Calendar", icon: "📅", sources: ["Google Calendar"], summary: { main: "2 critical dates this week", status: "amber" }, detail: [
+            { label: "Mar 27 (Thu)", value: "Steering committee — decisions needed", status: "amber", expandedDetail: "CR-009 + RAID-017. Deck ready for review.", sourceLink: "Open in Google Calendar →", actions: [{ label: "Review deck", link: "Confluence" }] },
+            { label: "Mar 28 (Fri)", value: "Sprint 4 demo", status: "green", sourceLink: "Open in Google Calendar →" },
+            { label: "Apr 7-11", value: "Sarah PTO — CPQ gap risk", status: "amber", expandedDetail: "If 1195 unresolved, no CPQ owner Sprint 5." },
+          ], threads: [{ id: "cal-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "Sarah's PTO creates urgency on CPQ knowledge transfer.", time: "8:04 AM", actions: [{ label: "View pairing session", link: "Google Calendar" }] },
+          ]}]},
         ],
       },
 
       collab: {
         id: "collab", label: "Collab Manager", icon: "🤝",
-        headerDetail: "Meetings, workshops & outstanding decisions",
+        headerDetail: "Meetings, workshops & decisions",
         cards: [
-          {
-            id: "meetings", label: "Meetings", icon: "📅",
-            sources: ["Google Calendar"],
-            summary: { main: "3 this week · 1 needs prep", status: "amber" },
-            detail: [
-              { label: "Thu 2:00 PM", value: "Steering Committee — prep deck ready for review", status: "amber", age: "Needs review", expandedDetail: "Attendees: Tom Harris, Lisa Park, Alex Torres. Topics: CR-009, RAID-017, Sprint 4 status. Deck drafted by Agent — needs PM review.", sourceLink: "Open in Google Calendar →", actions: [{ label: "Review deck", link: "Confluence" }] },
-              { label: "Thu 4:00 PM", value: "Client sync — Lisa + team · Agenda set", status: "green", expandedDetail: "Weekly sync with Lisa Park. Agenda: Sprint 4 progress, ACME-1195 status, dry run scheduling.", sourceLink: "Open in Google Calendar →" },
-              { label: "Fri 10:00 AM", value: "Sprint 4 demo — narrative not yet confirmed", status: "amber", age: "Action needed", expandedDetail: "Demo to client team. Need to confirm which features to show and who presents each. Sync with Maya and Raj by tomorrow.", sourceLink: "Open in Google Calendar →", actions: [{ label: "Message Maya & Raj", link: "Slack" }] },
-            ],
-            threads: [{ id: "meetings-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "Steering committee deck is drafted and ready for your review in Confluence. Key topics: CR-009 disposition and RAID-017 escalation.", time: "9:15 AM", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
-              { from: "agent", text: "Sprint demo narrative is not yet confirmed. Recommend syncing with Maya and Raj by tomorrow.", time: "9:16 AM", actions: [{ label: "Message Maya", link: "Slack" }, { label: "Message Raj", link: "Slack" }] },
-            ]}],
-          },
-          {
-            id: "workshops", label: "Workshops", icon: "🧑‍🏫",
-            sources: ["Google Calendar", "Google Docs"],
-            summary: { main: "1 upcoming · 0 prep issues", status: "green" },
-            detail: [
-              { label: "Apr 2 (Wed)", value: "Sprint 5 planning — 2 hours · All team + Lisa", status: "green", expandedDetail: "Sprint planning workshop. 6 stories estimated, 2 need refinement (ACME-1210, ACME-1212). Pre-read shared.", sourceLink: "Open in Google Calendar →" },
-              { label: "Prep status", value: "Backlog groomed — 6 stories, 2 need refinement", status: "green", expandedDetail: "ACME-1210 (report builder) and ACME-1212 (advanced CPQ rules) need refinement. ACME-1212 scope may change if CR-009 is approved.", sourceLink: "Open in Google Docs →" },
-              { label: "Pre-read", value: "Sprint 4 retro notes + Sprint 5 scope doc shared", status: "green", expandedDetail: "Both documents shared to #acme-proj-alpha on Monday. Lisa acknowledged receipt.", sourceLink: "Open in Google Docs →" },
-            ],
-            threads: [{ id: "workshops-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "Sprint 5 planning workshop is well-prepared. If CR-009 is approved Thursday, I'll update ACME-1212 scope automatically.", time: "8:05 AM", actions: [{ label: "View Sprint 5 backlog", link: "Jira" }] },
-            ]}],
-          },
-          {
-            id: "outstanding-decisions", label: "Outstanding Decisions", icon: "⏳",
-            sources: ["PMO Toolkit", "PSA"],
-            summary: { main: "3 pending · 1 overdue", status: "amber" },
-            detail: [
-              { label: "DD-045", value: "Tiered discount logic — approve or defer", status: "red", age: "Overdue", expandedDetail: "Blocking Sprint 5 planning and Sarah's CPQ work. On steering committee agenda Thursday. Cost-benefit analysis prepared for both options.", sourceLink: "Open in PMO Toolkit →", actions: [{ label: "View analysis", link: "Confluence" }] },
-              { label: "DD-046", value: "Report builder scope — standard vs custom", status: "amber", age: "Due Thu", expandedDetail: "Client needs to decide between Salesforce-native reports (faster, limited) or custom dashboard (more effort, flexible). Lisa asked, awaiting response.", sourceLink: "Open in PMO Toolkit →" },
-              { label: "DD-047", value: "Data archival strategy — pre-migration cleanup", status: "amber", age: "Due next week", expandedDetail: "Options: archive to cold storage before migration (cleaner but slower) or migrate everything and clean post-go-live (faster but messier).", sourceLink: "Open in PMO Toolkit →" },
-            ],
-            threads: [{ id: "outstanding-dec-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "DD-045 is overdue and blocking Sprint 5 planning. It's on the steering committee agenda for Thursday.", time: "8:04 AM", actions: [{ label: "View in PMO Toolkit", link: "PMO Toolkit" }, { label: "View cost-benefit analysis", link: "Confluence" }] },
-              { from: "agent", text: "DD-046: Lisa hasn't responded. Following up in #acme-external.", time: "8:04 AM", actions: [{ label: "View in #acme-external", link: "Slack" }] },
-            ]}],
-          },
+          { id: "meetings", label: "Meetings", icon: "📅", sources: ["Google Calendar"], summary: { main: "3 this week · 1 needs prep", status: "amber" }, detail: [
+            { label: "Thu 2:00 PM", value: "Steering Committee — deck needs review", status: "amber", age: "Needs review", sourceLink: "Open in Google Calendar →", actions: [{ label: "Review deck", link: "Confluence" }] },
+            { label: "Thu 4:00 PM", value: "Client sync — agenda set", status: "green", sourceLink: "Open in Google Calendar →" },
+            { label: "Fri 10:00 AM", value: "Sprint demo — narrative TBD", status: "amber", age: "Action needed", sourceLink: "Open in Google Calendar →" },
+          ], threads: [{ id: "mtg-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+            { from: "agent", text: "Steering committee deck drafted. Review before Thursday.", time: "9:15 AM", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
+          ]}]},
+          { id: "outstanding-decisions", label: "Outstanding Decisions", icon: "⏳", sources: ["PMO Toolkit", "PSA"], summary: { main: "3 pending · 1 overdue", status: "amber" }, detail: [
+            { label: "DD-045", value: "Tiered discounts — approve or defer", status: "red", age: "Overdue", expandedDetail: "Blocking Sprint 5 planning. Thursday agenda.", sourceLink: "Open in PMO Toolkit →", actions: [{ label: "View analysis", link: "Confluence" }] },
+            { label: "DD-046", value: "Report builder — standard vs custom", status: "amber", age: "Due Thu", sourceLink: "Open in PMO Toolkit →" },
+          ], threads: [{ id: "od-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+            { from: "agent", text: "DD-045 overdue. Cost-benefit analysis ready.", time: "8:04 AM", actions: [{ label: "View in PMO Toolkit", link: "PMO Toolkit" }] },
+          ]}]},
         ],
       },
 
@@ -350,46 +284,19 @@
         id: "files", label: "Files", icon: "📁",
         headerDetail: "Project documents & artifacts",
         cards: [
-          {
-            id: "files-new", label: "New", icon: "🆕",
-            sources: ["Google Docs"],
-            summary: { main: "3 files added this week", status: "green" },
-            detail: [
-              { label: "Sprint 4 Retro Notes", value: "Added by Alex · Tuesday", status: "green", date: "Mar 25", expandedDetail: "Retrospective notes from Sprint 4 mid-sprint check-in. Covers team feedback, process improvements, and action items.", sourceLink: "Open in Google Docs →" },
-              { label: "CR-009 Impact Assessment", value: "Agent-generated · Tuesday", status: "green", date: "Mar 25", expandedDetail: "Auto-generated impact analysis covering scope, timeline, budget, and resource implications of tiered discount logic request.", sourceLink: "Open in Google Docs →" },
-              { label: "Steering Committee Deck v8", value: "Agent-generated · Today", status: "review", date: "Mar 26", expandedDetail: "Weekly status report draft. Needs PM review before Thursday meeting. Assembled from Jira, Smartsheet, RAID log.", sourceLink: "Open in Google Docs →", actions: [{ label: "Review now", link: "Google Docs" }] },
-            ],
-            threads: [{ id: "files-new-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "I generated the CR-009 impact assessment and steering committee deck. Both are drafts needing your review.", time: "9:15 AM", actions: [{ label: "Review CR-009 assessment", link: "Google Docs" }, { label: "Review steerco deck", link: "Google Docs" }] },
-            ]}],
-          },
-          {
-            id: "files-updated", label: "Updated", icon: "📝",
-            sources: ["Google Docs"],
-            summary: { main: "5 files updated this week", status: "green" },
-            detail: [
-              { label: "Solution Design Document", value: "Maya — hierarchy validation section", status: "green", date: "Mar 25", expandedDetail: "Updated §4.2 to reflect DD-042 (5-level hierarchy limit). Added Apex trigger specification.", sourceLink: "Open in Google Docs →" },
-              { label: "Data Migration Mapping", value: "James — Account fields finalized", status: "green", date: "Mar 24", expandedDetail: "Source-to-target field mapping for Account object complete. 47 fields mapped, 3 requiring transformation.", sourceLink: "Open in Google Docs →" },
-              { label: "Test Plan", value: "Chen Wei — integration test cases added", status: "green", date: "Mar 24", expandedDetail: "12 new integration test cases for ERP sync and contact dedup scenarios.", sourceLink: "Open in Google Docs →" },
-              { label: "Training Guide — Sales Cloud", value: "Priya — opportunity management module", status: "green", date: "Mar 23", expandedDetail: "New module covering opportunity creation, stage progression, and pipeline dashboard usage. Includes screenshots.", sourceLink: "Open in Google Docs →" },
-              { label: "RAID Log", value: "Alex — RAID-021 added", status: "green", date: "Mar 23", expandedDetail: "Added sandbox refresh scheduling conflict. Assigned to Alex. Mitigation: shift refresh window to weekends.", sourceLink: "Open in Google Docs →" },
-            ],
-            threads: [{ id: "files-updated-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "5 updates this week. I verified the Solution Design Document update aligns with DD-042 and Maya's implementation in ACME-1182.", time: "8:05 AM" },
-            ]}],
-          },
-          {
-            id: "files-review", label: "Needs Review", icon: "👁️",
-            sources: ["Google Docs"],
-            summary: { main: "2 files awaiting review", status: "amber" },
-            detail: [
-              { label: "Steering Committee Deck v8", value: "Due Thursday AM", status: "amber", age: "Due tomorrow", expandedDetail: "Draft assembled by Agent. Review for accuracy, tone, and completeness before sharing with steering committee.", sourceLink: "Open in Google Docs →", actions: [{ label: "Review now", link: "Google Docs" }] },
-              { label: "CR-009 Impact Assessment", value: "Due before client call Thu 2 PM", status: "amber", age: "Due Thu 2 PM", expandedDetail: "Review the cost-benefit analysis and impact estimates before presenting options to steering committee.", sourceLink: "Open in Google Docs →", actions: [{ label: "Review now", link: "Google Docs" }] },
-            ],
-            threads: [{ id: "files-review-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "Two documents need your review before Thursday. I'd suggest the CR-009 assessment first since it feeds into the deck.", time: "9:15 AM", tier: 3, actions: [{ label: "Review CR-009 assessment", link: "Google Docs" }, { label: "Review steerco deck", link: "Google Docs" }] },
-            ]}],
-          },
+          { id: "files-new", label: "New", icon: "🆕", sources: ["Google Docs"], summary: { main: "3 files this week", status: "green" }, detail: [
+            { label: "Sprint 4 Retro Notes", value: "Alex · Tuesday", status: "green", date: "Mar 25", sourceLink: "Open in Google Docs →" },
+            { label: "CR-009 Impact Assessment", value: "Agent-generated · Tuesday", status: "green", date: "Mar 25", sourceLink: "Open in Google Docs →" },
+            { label: "Steering Committee Deck v8", value: "Agent-generated · Today", status: "review", date: "Mar 26", sourceLink: "Open in Google Docs →", actions: [{ label: "Review now", link: "Google Docs" }] },
+          ], threads: [{ id: "fn-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "CR-009 assessment and steerco deck are drafts needing review.", time: "9:15 AM", actions: [{ label: "Review CR-009", link: "Google Docs" }, { label: "Review deck", link: "Google Docs" }] },
+          ]}]},
+          { id: "files-review", label: "Needs Review", icon: "👁️", sources: ["Google Docs"], summary: { main: "2 awaiting review", status: "amber" }, detail: [
+            { label: "Steering Committee Deck v8", value: "Due Thursday AM", status: "amber", age: "Due tomorrow", sourceLink: "Open in Google Docs →", actions: [{ label: "Review now", link: "Google Docs" }] },
+            { label: "CR-009 Impact Assessment", value: "Due Thu 2 PM", status: "amber", age: "Due Thu", sourceLink: "Open in Google Docs →", actions: [{ label: "Review now", link: "Google Docs" }] },
+          ], threads: [{ id: "fr-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+            { from: "agent", text: "Review CR-009 first — it feeds into the deck.", time: "9:15 AM", tier: 3, actions: [{ label: "Review CR-009", link: "Google Docs" }, { label: "Review deck", link: "Google Docs" }] },
+          ]}]},
         ],
       },
 
@@ -397,50 +304,19 @@
         id: "insights", label: "Insights", icon: "#",
         headerDetail: "AI-generated analysis & recommendations",
         cards: [
-          {
-            id: "insights-project", label: "Project", icon: "📊",
-            sources: ["Open AI Log"],
-            summary: { main: "3 insights · 1 high priority", status: "amber" },
-            detail: [
-              { label: "Sprint velocity", value: "Trending down 15% over last 3 sprints", status: "amber", expandedDetail: "Sprint 2: 48 pts, Sprint 3: 44 pts, Sprint 4: 42 pts (projected). Decline concentrated in CPQ workstream. Sales Cloud and Data Migration on pace." },
-              { label: "Scope trajectory", value: "3 CRs in 4 sprints — contingency at risk", status: "amber", expandedDetail: "CR-004 ($12K), CR-007 ($8K), CR-009 ($18-24K est). Total: $38-44K of $72K contingency consumed. One more similar CR exhausts the buffer.", actions: [{ label: "View budget in Smartsheet", link: "Smartsheet" }] },
-              { label: "Quality trend", value: "Defect density improving — 0.4 bugs/story", status: "green", expandedDetail: "Sprint 2: 0.8 bugs/story, Sprint 3: 0.6, Sprint 4: 0.4. Improving trend suggests code review practices and test automation are working." },
-            ],
-            threads: [{ id: "insights-proj-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
-              { from: "agent", text: "The velocity decline is concentrated in the CPQ workstream, not systemic. Resolving Sarah's blocker should restore velocity.", time: "8:06 AM", actions: [{ label: "View velocity in Jira", link: "Jira" }] },
-              { from: "agent", text: "On scope: with $43K contingency remaining and 4 sprints left, recommend discussing scope governance at steering committee.", time: "8:06 AM", actions: [{ label: "View budget in Smartsheet", link: "Smartsheet" }] },
-            ]}],
-          },
-          {
-            id: "insights-people", label: "People", icon: "👥",
-            sources: ["Open AI Log"],
-            summary: { main: "2 recommendations", status: "green" },
-            detail: [
-              { label: "Knowledge transfer", value: "CPQ expertise concentrated in Sarah", status: "amber", expandedDetail: "Immediate: pairing session with Raj tomorrow. Long-term: have Raj shadow Sarah on all CPQ stories in Sprint 5 to build redundancy before her PTO.", actions: [{ label: "View pairing session", link: "Google Calendar" }] },
-              { label: "Client relationship", value: "Invite Lisa to retros to deepen trust", status: "green", expandedDetail: "Lisa has 100% demo attendance and fast Slack response times. Inviting her to retrospectives signals partnership and may help with RAID-017 IT escalation." },
-            ],
-            threads: [{ id: "insights-people-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
-              { from: "agent", text: "Knowledge concentration around Sarah is the team's biggest vulnerability. Pairing session tomorrow is the immediate fix. Longer term: Raj shadows all CPQ stories in Sprint 5.", time: "8:06 AM", actions: [{ label: "View pairing session", link: "Google Calendar" }] },
-              { from: "agent", text: "Lisa's engagement metrics are strong. Inviting her to the retro would signal partnership.", time: "8:06 AM", actions: [{ label: "Invite Lisa to retro", link: "Google Calendar" }] },
-            ]}],
-          },
-          {
-            id: "insights-agent-actions", label: "Agent Actions", icon: "🤖",
-            sources: ["Open AI Log"],
-            summary: { main: "12 today · 2 pending review", status: "green" },
-            detail: [
-              { label: "9:45 AM", value: "Generated standup summary from Jira", status: "auto", tier: 2 },
-              { label: "9:15 AM", value: "Drafted steering committee report", status: "review", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
-              { label: "8:30 AM", value: "Pre-assessed CR-009 impact", status: "auto", tier: 2 },
-              { label: "8:02 AM", value: "Compiled morning briefings (6 members)", status: "auto", tier: 1 },
-              { label: "7:30 AM", value: "Detected velocity decline (Sarah/CPQ)", status: "auto", tier: 1 },
-            ],
-            threads: [{ id: "agent-log-thread", label: "Audit Trail", icon: "📋", unread: 0, messages: [
-              { from: "agent", text: "Tier 1-2 actions ran automatically. Two Tier 3 items queued:", time: "9:45 AM" },
-              { from: "agent", text: "1. Steering committee draft — ready for review.", time: "9:15 AM", tier: 3, actions: [{ label: "Review in Confluence", link: "Confluence" }] },
-              { from: "agent", text: "2. Client response to CR-009 — two options drafted.", time: "8:35 AM", tier: 3, actions: [{ label: "Review in #acme-external", link: "Slack" }] },
-            ]}],
-          },
+          { id: "insights-project", label: "Project", icon: "📊", sources: ["Open AI Log"], summary: { main: "3 insights · 1 high priority", status: "amber" }, detail: [
+            { label: "Sprint velocity", value: "Trending down 15% over 3 sprints", status: "amber", expandedDetail: "Concentrated in CPQ workstream. Other workstreams on pace." },
+            { label: "Scope trajectory", value: "Contingency at risk — 3 CRs in 4 sprints", status: "amber", expandedDetail: "$38-44K of $72K consumed. One more similar CR exhausts buffer.", actions: [{ label: "View in Smartsheet", link: "Smartsheet" }] },
+            { label: "Quality trend", value: "Improving — 0.4 bugs/story", status: "green", expandedDetail: "Down from 0.8 in Sprint 2. Code review practices working." },
+          ], threads: [{ id: "ip-agent", label: "Agent", icon: "🤖", unread: 1, messages: [
+            { from: "agent", text: "Velocity decline is CPQ-specific, not systemic. Resolving Sarah's blocker should restore it.", time: "8:06 AM", actions: [{ label: "View in Jira", link: "Jira" }] },
+          ]}]},
+          { id: "insights-people", label: "People", icon: "👥", sources: ["Open AI Log"], summary: { main: "2 recommendations", status: "green" }, detail: [
+            { label: "Knowledge transfer", value: "Pair Raj with Sarah on CPQ", status: "amber", expandedDetail: "Immediate: pairing tomorrow. Long-term: shadow all Sprint 5 CPQ stories.", actions: [{ label: "View session", link: "Google Calendar" }] },
+            { label: "Client relationship", value: "Invite Lisa to retros", status: "green", expandedDetail: "100% demo attendance. Retro invite deepens partnership." },
+          ], threads: [{ id: "ipp-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+            { from: "agent", text: "Knowledge concentration is the biggest team vulnerability. Pairing session is the immediate fix.", time: "8:06 AM", actions: [{ label: "View session", link: "Google Calendar" }] },
+          ]}]},
         ],
       },
     };
@@ -455,82 +331,59 @@
     ];
 
     // =================================================================
-    // THEME
+    // COMPONENTS
     // =================================================================
-    const SC = {
-      green: { bg: "rgba(46,160,67,0.07)", border: "#2EA043", text: "#7EE787" },
-      amber: { bg: "rgba(227,179,65,0.07)", border: "#E3B341", text: "#E3B341" },
-      red: { bg: "rgba(248,81,73,0.07)", border: "#F85149", text: "#F85149" },
-      done: { bg: "rgba(46,160,67,0.04)", border: "#2EA043", text: "#2EA043" },
-      pending: { bg: "rgba(227,179,65,0.04)", border: "#E3B341", text: "#E3B341" },
-      auto: { bg: "rgba(88,166,255,0.04)", border: "#58A6FF", text: "#58A6FF" },
-      review: { bg: "rgba(240,136,62,0.06)", border: "#F0883E", text: "#F0883E" },
-    };
-    const TC = { 1: "#58A6FF", 2: "#7EE787", 3: "#F0883E" };
-    const TL = { 1: "Read-only", 2: "Act & log", 3: "Needs approval" };
-    const SB = { bg: "#3F0E40", active: "#1164A3", text: "#fff", muted: "rgba(255,255,255,0.7)", dim: "rgba(255,255,255,0.4)", border: "rgba(255,255,255,0.1)", badge: "#CD2553" };
 
-    // =================================================================
-    // SMALL COMPONENTS
-    // =================================================================
-    function Dot({ status, size = 7 }) {
-      const c = SC[status] || SC.green;
+    function Dot({ status, size = 7, theme }) {
+      const c = STATUS_COLORS[status] || STATUS_COLORS.green;
       return <div style={{ width: size, height: size, borderRadius: "50%", background: c.border, flexShrink: 0 }} />;
     }
 
     function TierBadge({ tier }) {
       if (!tier) return null;
-      return (
-        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", background: `${TC[tier]}12`, border: `1px solid ${TC[tier]}33`, color: TC[tier], flexShrink: 0 }}>
-          T{tier} <span style={{ fontWeight: 400, color: "#9B9C9E", fontSize: 9 }}>{TL[tier]}</span>
-        </span>
-      );
+      return <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", background: `${TC[tier]}12`, border: `1px solid ${TC[tier]}33`, color: TC[tier], flexShrink: 0 }}>T{tier} <span style={{ fontWeight: 400, color: "#9B9C9E", fontSize: 9 }}>{TL[tier]}</span></span>;
     }
 
-    // Action buttons — the warm handoff links
-    function ActionButtons({ actions }) {
-      if (!actions || actions.length === 0) return null;
+    function ActionBtns({ actions, t }) {
+      if (!actions?.length) return null;
       return (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
           {actions.map((a, i) => (
-            <div key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: i === 0 ? "rgba(88,166,255,0.12)" : "rgba(255,255,255,0.04)", color: i === 0 ? "#58A6FF" : "#9B9C9E", cursor: "pointer", fontWeight: i === 0 ? 500 : 400, display: "flex", alignItems: "center", gap: 4 }}>
-              {a.label} <span style={{ fontSize: 9, opacity: 0.6 }}>→ {a.link}</span>
+            <div key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: i === 0 ? t.accentBg : t.bgInput, color: i === 0 ? t.accent : t.textMuted, cursor: "pointer", fontWeight: i === 0 ? 500 : 400, display: "flex", alignItems: "center", gap: 4 }}>
+              {a.label} <span style={{ fontSize: 9, opacity: 0.5 }}>→ {a.link}</span>
             </div>
           ))}
         </div>
       );
     }
 
-    // Expandable detail row with accordion
-    function Row({ item }) {
+    function Row({ item, t }) {
       const [open, setOpen] = useState(false);
-      const c = SC[item.status] || SC.green;
-      const hasExpanded = item.expandedDetail || item.sourceLink || item.actions;
+      const c = STATUS_COLORS[item.status] || STATUS_COLORS.green;
+      const has = item.expandedDetail || item.sourceLink || item.actions;
       return (
         <div style={{ borderRadius: 5, overflow: "hidden" }}>
-          <div onClick={() => hasExpanded && setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: c.bg, gap: 12, cursor: hasExpanded ? "pointer" : "default" }}>
+          <div onClick={() => has && setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: c.bg, gap: 12, cursor: has ? "pointer" : "default" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <Dot status={item.status} size={6} />
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#C9D1D9", whiteSpace: "nowrap" }}>{item.label}</span>
-              {item.role && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: "rgba(255,255,255,0.06)", color: "#9B9C9E" }}>{item.role}</span>}
+              <span style={{ fontSize: 13, fontWeight: 500, color: t.text, whiteSpace: "nowrap" }}>{item.label}</span>
+              {item.role && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: t.bgInput, color: t.textMuted }}>{item.role}</span>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 12, color: "#9B9C9E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.value}</span>
+              <span style={{ fontSize: 12, color: t.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.value}</span>
               {item.tier && <TierBadge tier={item.tier} />}
-              {item.age && <span style={{ fontSize: 10, color: c.text, fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>{item.age}</span>}
-              {item.date && <span style={{ fontSize: 11, color: "#484F58", fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>{item.date}</span>}
-              {hasExpanded && <span style={{ fontSize: 9, color: "#484F58", flexShrink: 0, transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.12s" }}>▼</span>}
+              {item.age && <span style={{ fontSize: 10, color: c.border, fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>{item.age}</span>}
+              {item.date && <span style={{ fontSize: 11, color: t.textDim, fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>{item.date}</span>}
+              {has && <span style={{ fontSize: 9, color: t.textDim, flexShrink: 0, transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.12s" }}>▼</span>}
             </div>
           </div>
-          {open && hasExpanded && (
-            <div style={{ padding: "8px 12px 10px 30px", background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-              {item.expandedDetail && <div style={{ fontSize: 12, color: "#8B949E", lineHeight: 1.6, marginBottom: item.sourceLink || item.actions ? 8 : 0 }}>{item.expandedDetail}</div>}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                {item.sourceLink && <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: "rgba(88,166,255,0.1)", color: "#58A6FF", cursor: "pointer", fontWeight: 500 }}>{item.sourceLink}</div>}
+          {open && has && (
+            <div style={{ padding: "8px 12px 10px 30px", background: t.bgExpanded, borderTop: `1px solid ${t.border}` }}>
+              {item.expandedDetail && <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>{item.expandedDetail}</div>}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {item.sourceLink && <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: t.accentBg, color: t.accent, cursor: "pointer", fontWeight: 500 }}>{item.sourceLink}</div>}
                 {item.actions?.map((a, i) => (
-                  <div key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: "rgba(255,255,255,0.04)", color: "#9B9C9E", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                    {a.label} <span style={{ fontSize: 9, opacity: 0.5 }}>→ {a.link}</span>
-                  </div>
+                  <div key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: t.bgInput, color: t.textMuted, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>{a.label} <span style={{ fontSize: 9, opacity: 0.5 }}>→ {a.link}</span></div>
                 ))}
               </div>
             </div>
@@ -539,9 +392,10 @@
       );
     }
 
-    function Msg({ msg }) {
+    // Demo-aware chat message
+    function Msg({ msg, t }) {
       const u = msg.from === "user", a = msg.from === "agent";
-      const nc = u ? "#58A6FF" : a ? "#D2A8FF" : "#7EE787";
+      const nc = u ? t.accent : a ? "#D2A8FF" : "#2EA043";
       const nm = u ? "You" : a ? "Agent" : msg.from;
       return (
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start", maxWidth: 720 }}>
@@ -549,27 +403,27 @@
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: nc }}>{nm}</span>
-              <span style={{ fontSize: 11, color: "#484F58" }}>{msg.time}</span>
+              <span style={{ fontSize: 11, color: t.textDim }}>{msg.time}</span>
             </div>
-            <div style={{ fontSize: 13, color: "#B1BAC4", lineHeight: 1.6, background: u ? "rgba(88,166,255,0.06)" : "rgba(255,255,255,0.02)", border: `1px solid ${u ? "rgba(88,166,255,0.1)" : "rgba(255,255,255,0.04)"}`, borderRadius: 8, padding: "8px 12px", whiteSpace: "pre-wrap" }}>
+            <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.6, background: u ? t.bgMsgUser : t.bgMsgAgent, border: `1px solid ${u ? t.borderActive : t.border}`, borderRadius: 8, padding: "8px 12px", whiteSpace: "pre-wrap" }}>
               {msg.text}
               {msg.tier && <div style={{ marginTop: 6 }}><TierBadge tier={msg.tier} /></div>}
-              {msg.actions && <ActionButtons actions={msg.actions} />}
+              {msg.actions && <ActionBtns actions={msg.actions} t={t} />}
             </div>
           </div>
         </div>
       );
     }
 
-    function Pill({ card, isChatTarget, onExpand, onChat }) {
-      const ur = card.threads.reduce((s, t) => s + t.unread, 0);
+    function Pill({ card, isChat, onExpand, onChat, t }) {
+      const ur = card.threads.reduce((s, th) => s + th.unread, 0);
       return (
-        <div onClick={onExpand} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, cursor: "pointer", background: isChatTarget ? "rgba(88,166,255,0.06)" : "rgba(255,255,255,0.02)", border: `1px solid ${isChatTarget ? "rgba(88,166,255,0.15)" : "rgba(255,255,255,0.05)"}` }}>
+        <div onClick={onExpand} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, cursor: "pointer", background: isChat ? t.bgCardHover : t.bgCard, border: `1px solid ${isChat ? t.borderActive : t.border}` }}>
           <span style={{ fontSize: 12 }}>{card.icon}</span>
-          <span style={{ fontSize: 12, fontWeight: 500, color: "#9B9C9E" }}>{card.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: t.textMuted }}>{card.label}</span>
           <Dot status={card.summary.status} size={6} />
-          <div onClick={e => { e.stopPropagation(); onChat(); }} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "rgba(255,255,255,0.04)", color: "#6E7681", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
-            💬{ur > 0 && <span style={{ fontSize: 9, color: "#58A6FF", fontWeight: 700 }}>{ur}</span>}
+          <div onClick={e => { e.stopPropagation(); onChat(); }} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: t.bgInput, color: t.textDim, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+            💬{ur > 0 && <span style={{ fontSize: 9, color: t.accent, fontWeight: 700 }}>{ur}</span>}
           </div>
         </div>
       );
@@ -578,87 +432,86 @@
     // =================================================================
     // SIDEBAR
     // =================================================================
-    function SBItem({ icon, label, active, badge, indent, muted, onClick }) {
+    function SBItem({ icon, label, active, badge, indent, muted, onClick, t }) {
       return (
-        <div onClick={onClick} style={{ padding: `3px 16px 3px ${indent ? "28px" : "16px"}`, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", borderRadius: 6, margin: "0 8px 1px", background: active ? SB.active : "transparent", color: active ? SB.text : muted ? SB.dim : SB.muted, fontSize: 14, fontWeight: active ? 600 : 400 }}>
+        <div onClick={onClick} style={{ padding: `3px 16px 3px ${indent ? "28px" : "16px"}`, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", borderRadius: 6, margin: "0 8px 1px", background: active ? t.sbActive : "transparent", color: active ? t.sbText : muted ? t.sbDim : t.sbMuted, fontSize: 14, fontWeight: active ? 600 : 400 }}>
           {icon && <span style={{ fontSize: 13, width: 18, textAlign: "center", flexShrink: 0, opacity: muted ? 0.5 : 0.8 }}>{icon}</span>}
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-          {badge && <span style={{ fontSize: 11, padding: "0 6px", borderRadius: 8, background: SB.badge, color: "#fff", fontWeight: 700, lineHeight: "18px" }}>{badge}</span>}
+          {badge && <span style={{ fontSize: 11, padding: "0 6px", borderRadius: 8, background: t.sbBadge, color: "#fff", fontWeight: 700, lineHeight: "18px" }}>{badge}</span>}
         </div>
       );
     }
 
-    function SBSection({ label, badge, open: defaultOpen, children }) {
-      const [open, setOpen] = useState(defaultOpen || false);
+    function SBSection({ label, badge, open: defOpen, children, t }) {
+      const [open, setOpen] = useState(defOpen || false);
       return (
         <div style={{ marginTop: 8 }}>
-          <div onClick={() => setOpen(!open)} style={{ padding: "4px 16px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: SB.muted, fontSize: 14 }}>
+          <div onClick={() => setOpen(!open)} style={{ padding: "4px 16px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: t.sbMuted, fontSize: 14 }}>
             <span style={{ fontSize: 10, transition: "transform 0.15s", transform: open ? "rotate(90deg)" : "rotate(0)" }}>▶</span>
             <span style={{ flex: 1, fontWeight: 500 }}>{label}</span>
-            {badge && <span style={{ fontSize: 11, padding: "0 6px", borderRadius: 8, background: SB.badge, color: "#fff", fontWeight: 700, lineHeight: "18px" }}>{badge}</span>}
+            {badge && <span style={{ fontSize: 11, padding: "0 6px", borderRadius: 8, background: t.sbBadge, color: "#fff", fontWeight: 700, lineHeight: "18px" }}>{badge}</span>}
           </div>
           {open && <div style={{ marginTop: 2 }}>{children}</div>}
         </div>
       );
     }
 
-    function Sidebar({ activePage, onPageSelect }) {
+    // =================================================================
+    // SETTINGS PANEL
+    // =================================================================
+    function SettingsPanel({ config, setConfig, isDark, setIsDark, onClose, t }) {
       return (
-        <div style={{ display: "flex", flexShrink: 0, height: "100%" }}>
-          <div style={{ width: 60, background: "#2C0A2E", display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 2, flexShrink: 0 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 10 }}>🚀</div>
-            {[{ icon: "🏠", label: "Home" }, { icon: "💬", label: "DMs" }, { icon: "🔔", label: "Activity" }, { icon: "🔗", label: "External" }, { icon: "🕐", label: "Later" }, { icon: "···", label: "More" }].map((item, i) => (
-              <div key={i} style={{ width: 44, padding: "6px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 18 }}>
-                <span>{item.icon}</span>
-                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{item.label}</span>
-              </div>
-            ))}
-            <div style={{ flex: 1 }} />
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, cursor: "pointer", marginBottom: 4 }}>+</div>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E3B341", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#1A1D21" }}>JB</div>
+        <div style={{ position: "fixed", top: 0, right: 0, width: 340, height: "100vh", background: t.settingsBg, borderLeft: `1px solid ${t.border}`, zIndex: 100, display: "flex", flexDirection: "column", boxShadow: "-4px 0 20px rgba(0,0,0,0.3)" }}>
+          <div style={{ padding: "16px 20px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: t.text }}>⚙️ Settings</span>
+            <span onClick={onClose} style={{ fontSize: 18, color: t.textMuted, cursor: "pointer" }}>×</span>
           </div>
-          <div style={{ width: 240, background: SB.bg, display: "flex", flexDirection: "column", borderRight: `1px solid ${SB.border}`, overflow: "hidden" }}>
-            <div style={{ padding: "12px 16px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 16, fontWeight: 700, color: SB.text }}>ACME Inc</span><span style={{ fontSize: 12, color: SB.dim }}>▾</span></div>
-              <div style={{ display: "flex", gap: 8 }}><span style={{ fontSize: 14, color: SB.dim, cursor: "pointer" }}>☰</span><span style={{ fontSize: 14, color: SB.dim, cursor: "pointer" }}>✎</span></div>
-            </div>
-            <div style={{ padding: "4px 16px 8px" }}>
-              <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(255,255,255,0.06)", fontSize: 13, color: SB.muted, display: "flex", alignItems: "center", gap: 6 }}>All workspaces <span style={{ marginLeft: "auto", fontSize: 10, color: SB.dim }}>▾</span></div>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", paddingBottom: 12 }}>
-              <SBItem icon="💬" label="Unreads" />
-              <SBItem icon="🧵" label="Threads" badge="1" />
-              <SBItem icon="📤" label="Drafts & sent" />
-              <div style={{ height: 1, background: SB.border, margin: "8px 16px" }} />
-              <div style={{ padding: "4px 16px 2px", display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 22, height: 22, borderRadius: 6, background: "linear-gradient(135deg, #1164A3, #7B61FF)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>🚀</div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: SB.text }}>Acme Project Alpha</span>
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+            {/* Theme toggle */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Appearance</div>
+              <div onClick={() => setIsDark(!isDark)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 6, background: t.bgCard, border: `1px solid ${t.border}`, cursor: "pointer" }}>
+                <span style={{ fontSize: 14, color: t.text }}>{isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}</span>
+                <div style={{ width: 40, height: 22, borderRadius: 11, background: isDark ? t.accent : "#ccc", position: "relative", transition: "background 0.2s" }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", position: "absolute", top: 2, left: isDark ? 20 : 2, transition: "left 0.2s" }} />
+                </div>
               </div>
-              <div style={{ marginTop: 4 }}>
-                {PAGE_LIST.map(pg => (
-                  <SBItem key={pg.id} icon={pg.icon} label={pg.label} active={activePage === pg.id} indent onClick={() => onPageSelect(pg.id)} />
-                ))}
-              </div>
-              <div style={{ height: 1, background: SB.border, margin: "8px 16px" }} />
-              <SBSection label="Starred" open={true}>
-                <SBItem icon="#" label="acme-proj-alpha" indent />
-                <SBItem icon="#" label="acme-proj-alpha-sa" indent />
-                <SBItem icon="🔒" label="acme-proj-alpha-leader" indent />
-              </SBSection>
-              <SBSection label="Channels" badge="4">
-                <SBItem icon="#" label="general" indent muted />
-                <SBItem icon="#" label="acme-crm-data" indent />
-                <SBItem icon="#" label="acme-external" indent />
-              </SBSection>
-              <SBSection label="Direct messages" badge="4">
-                <SBItem icon="🟢" label="Lisa Park" indent />
-                <SBItem icon="🟢" label="Raj Patel" indent />
-                <SBItem icon="⚪" label="Sarah Kim" indent muted />
-              </SBSection>
-              <SBSection label="Apps" open={true}>
-                <SBItem icon="📅" label="Google Calendar" indent />
-                <SBItem icon="📝" label="Quip" indent />
-              </SBSection>
+            </div>
+
+            {/* Page visibility */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Visible Pages</div>
+              {PAGE_LIST.map(pg => (
+                <div key={pg.id} onClick={() => setConfig({ ...config, hiddenPages: config.hiddenPages?.includes(pg.id) ? config.hiddenPages.filter(p => p !== pg.id) : [...(config.hiddenPages || []), pg.id] })} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderRadius: 6, background: t.bgCard, border: `1px solid ${t.border}`, cursor: "pointer", marginBottom: 4 }}>
+                  <span style={{ fontSize: 13, color: t.text }}>{pg.icon} {pg.label}</span>
+                  <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${config.hiddenPages?.includes(pg.id) ? t.textDim : t.accent}`, background: config.hiddenPages?.includes(pg.id) ? "transparent" : t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff" }}>
+                    {!config.hiddenPages?.includes(pg.id) && "✓"}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Card visibility per current page */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Card Visibility</div>
+              <div style={{ fontSize: 11, color: t.textDim, marginBottom: 8 }}>Toggle cards on the current page</div>
+              {Object.entries(PAGES_DATA).map(([pgId, pgData]) => (
+                <div key={pgId} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 4 }}>{pgData.label}</div>
+                  {pgData.cards.map(card => {
+                    const key = `${pgId}:${card.id}`;
+                    const hidden = config.hiddenCards?.includes(key);
+                    return (
+                      <div key={key} onClick={() => setConfig({ ...config, hiddenCards: hidden ? (config.hiddenCards || []).filter(c => c !== key) : [...(config.hiddenCards || []), key] })} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px", borderRadius: 4, cursor: "pointer", marginBottom: 2 }}>
+                        <span style={{ fontSize: 12, color: hidden ? t.textDim : t.text }}>{card.icon} {card.label}</span>
+                        <div style={{ width: 16, height: 16, borderRadius: 3, border: `1.5px solid ${hidden ? t.textDim : t.accent}`, background: hidden ? "transparent" : t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff" }}>
+                          {!hidden && "✓"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -669,74 +522,231 @@
     // MAIN APP
     // =================================================================
     function App() {
+      const [isDark, setIsDark] = useState(true);
+      const [config, setConfig] = useState({ hiddenPages: [], hiddenCards: [] });
+      const [settingsOpen, setSettingsOpen] = useState(false);
       const [activePage, setActivePage] = useState("overview");
       const [expanded, setExpanded] = useState(null);
       const [chatId, setChatId] = useState(null);
       const [chatOpen, setChatOpen] = useState(false);
       const [threadTabs, setThreadTabs] = useState({});
+      const [myTasks, setMyTasks] = useState(false);
 
+      // Demo chat state
+      const [demoIndex, setDemoIndex] = useState({}); // per-thread: how many messages visible
+      const [inputText, setInputText] = useState("");
+      const [isTyping, setIsTyping] = useState(false);
+      const chatEndRef = useRef(null);
+
+      const t = isDark ? THEMES.dark : THEMES.light;
       const pageData = PAGES_DATA[activePage];
-      const cards = pageData?.cards || [];
+      const visiblePages = PAGE_LIST.filter(p => !config.hiddenPages?.includes(p.id));
+      const allCards = pageData?.cards || [];
+      const cards = allCards.filter(c => !config.hiddenCards?.includes(`${activePage}:${c.id}`));
 
-      const switchPage = (pgId) => { setActivePage(pgId); setExpanded(null); const fc = PAGES_DATA[pgId]?.cards?.[0]; if (fc) { setChatId(fc.id); setChatOpen(true); } };
+      const switchPage = (pgId) => { setActivePage(pgId); setExpanded(null); setMyTasks(false); const fc = PAGES_DATA[pgId]?.cards?.[0]; if (fc) { setChatId(fc.id); setChatOpen(true); } };
       const toggle = id => setExpanded(expanded === id ? null : id);
       const openChat = id => { setChatId(id); setChatOpen(true); };
 
-      const cd = cards.find(c => c.id === chatId);
+      const cd = cards.find(c => c.id === chatId) || allCards.find(c => c.id === chatId);
       const activeTabId = threadTabs[chatId] || cd?.threads?.[0]?.id;
-      const at = cd?.threads?.find(t => t.id === activeTabId);
+      const at = cd?.threads?.find(th => th.id === activeTabId);
       const setTab = (cid, tid) => setThreadTabs({ ...threadTabs, [cid]: tid });
 
+      // Demo: how many messages to show for current thread
+      const demoKey = activeTabId || "";
+      const visibleMsgCount = demoIndex[demoKey] ?? 0;
+      const allMsgs = at?.messages || [];
+      const visibleMsgs = allMsgs.slice(0, visibleMsgCount);
+      const nextMsg = allMsgs[visibleMsgCount];
+      const demoComplete = visibleMsgCount >= allMsgs.length;
+
+      // Initialize demo for new threads — show opening agent messages automatically
+      useEffect(() => {
+        if (demoKey && demoIndex[demoKey] === undefined) {
+          let startCount = 0;
+          while (startCount < allMsgs.length && allMsgs[startCount]?.from !== "user") {
+            startCount++;
+          }
+          setDemoIndex(prev => ({ ...prev, [demoKey]: startCount }));
+        }
+      }, [demoKey]);
+
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, [visibleMsgCount, isTyping]);
+
+      // Click input: load next user message text (or agent auto-sends)
+      const handleInputClick = () => {
+        if (demoComplete || isTyping) return;
+        if (nextMsg?.from === "user") {
+          setInputText(nextMsg.text);
+        } else {
+          // Auto-reveal non-user messages
+          revealNext();
+        }
+      };
+
+      const revealNext = () => {
+        setDemoIndex(prev => ({ ...prev, [demoKey]: (prev[demoKey] || 0) + 1 }));
+        // Check if the NEXT message after this one is also non-user (chain agent messages)
+        const nextIdx = (demoIndex[demoKey] || 0) + 1;
+        if (nextIdx < allMsgs.length && allMsgs[nextIdx]?.from !== "user") {
+          setIsTyping(true);
+          setTimeout(() => { setIsTyping(false); setDemoIndex(prev => ({ ...prev, [demoKey]: (prev[demoKey] || 0) + 1 })); }, 1200);
+        }
+      };
+
+      const handleSend = () => {
+        if (!inputText || isTyping) return;
+        setInputText("");
+        setDemoIndex(prev => ({ ...prev, [demoKey]: (prev[demoKey] || 0) + 1 }));
+        // After user sends, auto-reveal agent response(s) with delay
+        const nextIdx = (demoIndex[demoKey] || 0) + 1;
+        if (nextIdx < allMsgs.length && allMsgs[nextIdx]?.from !== "user") {
+          setIsTyping(true);
+          const revealChain = (idx) => {
+            setTimeout(() => {
+              setIsTyping(false);
+              setDemoIndex(prev => ({ ...prev, [demoKey]: idx + 1 }));
+              // Chain if next is also agent
+              if (idx + 1 < allMsgs.length && allMsgs[idx + 1]?.from !== "user") {
+                setIsTyping(true);
+                revealChain(idx + 1);
+              }
+            }, 1200);
+          };
+          revealChain(nextIdx);
+        }
+      };
+
+      // My Tasks filter
+      const filterForUser = (detail) => {
+        if (!myTasks) return detail;
+        return detail.filter(d => d.label?.includes(CURRENT_USER) || d.value?.includes(CURRENT_USER));
+      };
+
       return (
-        <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: "#1A1D21", color: "#D1D2D3", height: "100vh", display: "flex", overflow: "hidden" }}>
-          <Sidebar activePage={activePage} onPageSelect={switchPage} />
+        <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: t.bg, color: t.text, height: "100vh", display: "flex", overflow: "hidden" }}>
+
+          {/* Sidebar */}
+          <div style={{ display: "flex", flexShrink: 0, height: "100%" }}>
+            <div style={{ width: 60, background: t.sbRail, display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 2, flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 10 }}>🚀</div>
+              {[{ icon: "🏠", label: "Home" }, { icon: "💬", label: "DMs" }, { icon: "🔔", label: "Activity" }, { icon: "🔗", label: "External" }, { icon: "🕐", label: "Later" }, { icon: "···", label: "More" }].map((item, i) => (
+                <div key={i} style={{ width: 44, padding: "6px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 18 }}>
+                  <span>{item.icon}</span><span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{item.label}</span>
+                </div>
+              ))}
+              <div style={{ flex: 1 }} />
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E3B341", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#1A1D21" }}>MC</div>
+            </div>
+            <div style={{ width: 240, background: t.sbBg, display: "flex", flexDirection: "column", borderRight: `1px solid ${t.sbBorder}`, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: t.sbText }}>ACME Inc ▾</span>
+                <span onClick={() => setSettingsOpen(true)} style={{ fontSize: 14, color: t.sbDim, cursor: "pointer" }}>⚙️</span>
+              </div>
+              <div style={{ padding: "4px 16px 8px" }}>
+                <div style={{ padding: "4px 10px", borderRadius: 6, background: "rgba(255,255,255,0.06)", fontSize: 13, color: t.sbMuted }}>All workspaces ▾</div>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", paddingBottom: 12 }}>
+                <SBItem icon="💬" label="Unreads" t={t} />
+                <SBItem icon="🧵" label="Threads" badge="1" t={t} />
+                <SBItem icon="📤" label="Drafts & sent" t={t} />
+                <div style={{ height: 1, background: t.sbBorder, margin: "8px 16px" }} />
+                <div style={{ padding: "4px 16px 2px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: "linear-gradient(135deg, #1164A3, #7B61FF)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>🚀</div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: t.sbText }}>Acme Project Alpha</span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  {visiblePages.map(pg => (
+                    <SBItem key={pg.id} icon={pg.icon} label={pg.label} active={activePage === pg.id} indent onClick={() => switchPage(pg.id)} t={t} />
+                  ))}
+                </div>
+                <div style={{ height: 1, background: t.sbBorder, margin: "8px 16px" }} />
+                <SBSection label="Starred" open={true} t={t}>
+                  <SBItem icon="#" label="acme-proj-alpha" indent t={t} />
+                  <SBItem icon="#" label="acme-proj-alpha-sa" indent t={t} />
+                </SBSection>
+                <SBSection label="Channels" badge="4" t={t}>
+                  <SBItem icon="#" label="acme-crm-data" indent t={t} />
+                  <SBItem icon="#" label="acme-external" indent t={t} />
+                </SBSection>
+                <SBSection label="Direct messages" badge="4" t={t}>
+                  <SBItem icon="🟢" label="Lisa Park" indent t={t} />
+                  <SBItem icon="🟢" label="Raj Patel" indent t={t} />
+                </SBSection>
+                <SBSection label="Apps" open={true} t={t}>
+                  <SBItem icon="📅" label="Google Calendar" indent t={t} />
+                  <SBItem icon="📝" label="Quip" indent t={t} />
+                </SBSection>
+              </div>
+            </div>
+          </div>
+
+          {/* Main */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <div style={{ padding: "10px 24px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <span style={{ fontSize: 16 }}>{pageData?.icon}</span>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{pageData?.label}</span>
-              <span style={{ fontSize: 12, color: "#9B9C9E", padding: "3px 10px", borderRadius: 4, background: "rgba(255,255,255,0.06)" }}>{pageData?.headerDetail}</span>
+            {/* Header */}
+            <div style={{ padding: "10px 24px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: t.headerBg }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 16 }}>{pageData?.icon}</span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{pageData?.label}</span>
+                <span style={{ fontSize: 12, color: t.textMuted, padding: "3px 10px", borderRadius: 4, background: t.bgInput }}>{pageData?.headerDetail}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* My Tasks toggle */}
+                <div onClick={() => setMyTasks(!myTasks)} style={{ fontSize: 12, padding: "4px 12px", borderRadius: 5, background: myTasks ? t.accentBg : t.bgInput, color: myTasks ? t.accent : t.textMuted, cursor: "pointer", fontWeight: myTasks ? 600 : 400, border: `1px solid ${myTasks ? t.accent + "44" : "transparent"}` }}>
+                  {myTasks ? `👤 ${CURRENT_USER}` : "👤 My Tasks"}
+                </div>
+                <div onClick={() => setSettingsOpen(true)} style={{ fontSize: 12, padding: "4px 12px", borderRadius: 5, background: t.bgInput, color: t.textMuted, cursor: "pointer" }}>⚙️</div>
+              </div>
             </div>
 
             {/* Top: cards */}
-            <div style={{ flex: chatOpen ? "0 0 auto" : 1, maxHeight: chatOpen ? "48%" : "100%", overflowY: "auto", padding: "12px 24px", transition: "all 0.2s ease" }}>
+            <div style={{ flex: chatOpen ? "0 0 auto" : 1, maxHeight: chatOpen ? "48%" : "100%", overflowY: "auto", padding: "12px 24px" }}>
               <div style={{ display: "grid", gridTemplateColumns: expanded ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 6 }}>
                 {cards.map(card => {
                   const isExp = expanded === card.id;
                   const isChat = chatId === card.id && chatOpen;
-                  const sc = SC[card.summary.status] || SC.green;
-                  const ur = card.threads.reduce((s, t) => s + t.unread, 0);
+                  const sc = STATUS_COLORS[card.summary.status] || STATUS_COLORS.green;
+                  const ur = card.threads.reduce((s, th) => s + th.unread, 0);
+                  const filteredDetail = filterForUser(card.detail);
 
-                  if (expanded && !isExp) return <Pill key={card.id} card={card} isChatTarget={isChat} onExpand={() => toggle(card.id)} onChat={() => openChat(card.id)} />;
+                  // Hide cards with no items when My Tasks is on
+                  if (myTasks && filteredDetail.length === 0 && !isExp) return null;
+
+                  if (expanded && !isExp) return <Pill key={card.id} card={card} isChat={isChat} onExpand={() => toggle(card.id)} onChat={() => openChat(card.id)} t={t} />;
 
                   return (
-                    <div key={card.id} style={{ background: isChat ? "rgba(88,166,255,0.03)" : "rgba(255,255,255,0.02)", border: `1px solid ${isChat ? "rgba(88,166,255,0.15)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, gridColumn: isExp ? "1 / -1" : "auto" }}>
+                    <div key={card.id} style={{ background: isChat ? t.bgCardHover : t.bgCard, border: `1px solid ${isChat ? t.borderActive : t.border}`, borderRadius: 8, gridColumn: isExp ? "1 / -1" : "auto" }}>
                       <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div onClick={() => toggle(card.id)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 14 }}>{card.icon}</span>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{card.label}</span>
-                          <span style={{ fontSize: 13, color: "#6E7681", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{card.summary.main}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{card.label}</span>
+                          <span style={{ fontSize: 13, color: t.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myTasks ? `${filteredDetail.length} items` : card.summary.main}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-                            {card.summary.metric && <span style={{ fontSize: 14, fontWeight: 700, color: sc.text, fontFamily: "'IBM Plex Mono', monospace" }}>{card.summary.metric}</span>}
+                            {card.summary.metric && <span style={{ fontSize: 14, fontWeight: 700, color: sc.border, fontFamily: "'IBM Plex Mono', monospace" }}>{card.summary.metric}</span>}
                             <Dot status={card.summary.status} size={8} />
                           </div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 12, flexShrink: 0 }}>
-                          <div onClick={() => openChat(card.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, background: isChat ? "rgba(88,166,255,0.15)" : "rgba(255,255,255,0.04)", color: isChat ? "#58A6FF" : "#6E7681", cursor: "pointer", fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
-                            💬{ur > 0 && <span style={{ fontSize: 9, padding: "0 5px", borderRadius: 8, background: "#58A6FF", color: "#fff", fontWeight: 700, marginLeft: 2 }}>{ur}</span>}
+                          <div onClick={() => openChat(card.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, background: isChat ? t.accentBg : t.bgInput, color: isChat ? t.accent : t.textDim, cursor: "pointer", fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+                            💬{ur > 0 && <span style={{ fontSize: 9, padding: "0 5px", borderRadius: 8, background: t.accent, color: "#fff", fontWeight: 700, marginLeft: 2 }}>{ur}</span>}
                           </div>
-                          <span onClick={() => toggle(card.id)} style={{ fontSize: 10, color: "#484F58", cursor: "pointer", padding: "4px 6px" }}>{isExp ? "▲" : "▼"}</span>
+                          <span onClick={() => toggle(card.id)} style={{ fontSize: 10, color: t.textDim, cursor: "pointer", padding: "4px 6px" }}>{isExp ? "▲" : "▼"}</span>
                         </div>
                       </div>
                       {isExp && (
-                        <div style={{ padding: "0 14px 12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ padding: "0 14px 12px", borderTop: `1px solid ${t.border}` }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: 3, paddingTop: 8 }}>
-                            {card.detail.map((item, j) => <Row key={j} item={item} />)}
+                            {filteredDetail.map((item, j) => <Row key={j} item={item} t={t} />)}
+                            {myTasks && filteredDetail.length === 0 && <div style={{ fontSize: 13, color: t.textDim, padding: "12px", textAlign: "center" }}>No items assigned to {CURRENT_USER}</div>}
                           </div>
                           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                             {card.sources?.filter(s => s !== "AI Generated" && s !== "Open AI Log").map((s, si) => (
-                              <div key={si} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: si === 0 ? "rgba(88,166,255,0.1)" : "rgba(255,255,255,0.04)", color: si === 0 ? "#58A6FF" : "#9B9C9E", cursor: "pointer", fontWeight: si === 0 ? 500 : 400 }}>Open in {s} →</div>
+                              <div key={si} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: si === 0 ? t.accentBg : t.bgInput, color: si === 0 ? t.accent : t.textMuted, cursor: "pointer", fontWeight: si === 0 ? 500 : 400 }}>Open in {s} →</div>
                             ))}
-                            <div onClick={() => openChat(card.id)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: "rgba(255,255,255,0.04)", color: "#9B9C9E", cursor: "pointer" }}>💬 Ask Agent</div>
+                            <div onClick={() => openChat(card.id)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 5, background: t.bgInput, color: t.textMuted, cursor: "pointer" }}>💬 Ask Agent</div>
                           </div>
                         </div>
                       )}
@@ -746,49 +756,68 @@
               </div>
             </div>
 
-            {/* Bottom: chat */}
+            {/* Bottom: chat with demo flow */}
             {chatOpen && cd && (
-              <div style={{ flex: 1, minHeight: 0, borderTop: "2px solid rgba(88,166,255,0.15)", display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.1)" }}>
-                <div style={{ flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ flex: 1, minHeight: 0, borderTop: `2px solid ${t.borderChat}`, display: "flex", flexDirection: "column", background: t.bgChat }}>
+                <div style={{ flexShrink: 0, borderBottom: `1px solid ${t.border}` }}>
                   <div style={{ padding: "8px 24px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 14 }}>{cd.icon}</span><span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{cd.label}</span></div>
-                    <span onClick={() => setChatOpen(false)} style={{ fontSize: 11, color: "#6E7681", cursor: "pointer", padding: "3px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>▼ Minimize</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 14 }}>{cd.icon}</span><span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{cd.label}</span></div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {!demoComplete && <span style={{ fontSize: 10, color: t.accent, fontFamily: "'IBM Plex Mono', monospace" }}>Demo: {visibleMsgCount}/{allMsgs.length}</span>}
+                      <span onClick={() => setChatOpen(false)} style={{ fontSize: 11, color: t.textMuted, cursor: "pointer", padding: "3px 8px", borderRadius: 4, background: t.bgInput }}>▼ Minimize</span>
+                    </div>
                   </div>
                   <div style={{ display: "flex", gap: 0, padding: "6px 24px 0" }}>
-                    {cd.threads.map(t => {
-                      const act = activeTabId === t.id;
+                    {cd.threads.map(th => {
+                      const act = activeTabId === th.id;
                       return (
-                        <div key={t.id} onClick={() => setTab(chatId, t.id)} style={{ padding: "6px 14px 8px", fontSize: 13, fontWeight: act ? 600 : 400, color: act ? "#fff" : "#9B9C9E", borderBottom: `2px solid ${act ? "#58A6FF" : "transparent"}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 12 }}>{t.icon}</span>{t.label}
-                          {t.unread > 0 && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 8, background: "#58A6FF", color: "#fff", fontWeight: 700 }}>{t.unread}</span>}
+                        <div key={th.id} onClick={() => setTab(chatId, th.id)} style={{ padding: "6px 14px 8px", fontSize: 13, fontWeight: act ? 600 : 400, color: act ? t.text : t.textMuted, borderBottom: `2px solid ${act ? t.accent : "transparent"}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 12 }}>{th.icon}</span>{th.label}
+                          {th.unread > 0 && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 8, background: t.accent, color: "#fff", fontWeight: 700 }}>{th.unread}</span>}
                         </div>
                       );
                     })}
                   </div>
                 </div>
                 <div style={{ flex: 1, overflowY: "auto", padding: "10px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {at?.messages.map((msg, i) => <Msg key={i} msg={msg} />)}
+                  {visibleMsgs.map((msg, i) => <Msg key={i} msg={msg} t={t} />)}
+                  {isTyping && (
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", maxWidth: 720 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #7B61FF, #58A6FF)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>🤖</div>
+                      <div style={{ fontSize: 13, color: t.textDim, fontStyle: "italic" }}>Agent is typing...</div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
                 </div>
-                <div style={{ padding: "10px 24px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-                  <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 720 }}>
-                    <span style={{ fontSize: 13, color: "#6E7681" }}>Message about {cd.label.toLowerCase()}...</span>
-                    <span style={{ fontSize: 16, cursor: "pointer", color: "#58A6FF" }}>↑</span>
+                <div style={{ padding: "10px 24px", borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
+                  <div
+                    onClick={!inputText ? handleInputClick : undefined}
+                    style={{ background: t.bgInput, border: `1px solid ${inputText ? t.accent + "66" : t.border}`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 720, cursor: !inputText && !demoComplete ? "pointer" : "default" }}
+                  >
+                    <span style={{ fontSize: 13, color: inputText ? t.text : t.textDim }}>
+                      {inputText || (demoComplete ? "Demo complete ✓" : isTyping ? "Waiting for response..." : "Click here to continue the conversation...")}
+                    </span>
+                    {inputText && (
+                      <span onClick={handleSend} style={{ fontSize: 14, cursor: "pointer", color: t.accent, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: t.accentBg }}>Send ↑</span>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
             {!chatOpen && cd && (
-              <div onClick={() => setChatOpen(true)} style={{ padding: "10px 24px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", background: "rgba(88,166,255,0.03)", flexShrink: 0 }}>
+              <div onClick={() => setChatOpen(true)} style={{ padding: "10px 24px", borderTop: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", background: t.bgCardHover, flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 14 }}>{cd.icon}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#C9D1D9" }}>{cd.label}</span>
-                  <span style={{ fontSize: 12, color: "#6E7681" }}>— {at?.messages[at.messages.length - 1]?.text.slice(0, 80)}...</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{cd.label}</span>
                 </div>
-                <span style={{ fontSize: 11, color: "#58A6FF", fontWeight: 500 }}>▲ Expand</span>
+                <span style={{ fontSize: 11, color: t.accent, fontWeight: 500 }}>▲ Expand</span>
               </div>
             )}
           </div>
+
+          {/* Settings overlay */}
+          {settingsOpen && <SettingsPanel config={config} setConfig={setConfig} isDark={isDark} setIsDark={setIsDark} onClose={() => setSettingsOpen(false)} t={t} />}
         </div>
       );
     }

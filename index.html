@@ -69,6 +69,90 @@
     // includes all pages with demo-ready chat sequences)
     // =================================================================
     const PAGES_DATA = {
+
+      // ---------------------------------------------------------------
+      // TODAY'S ACTIVITIES — personalized daily briefing
+      // ---------------------------------------------------------------
+      today: {
+        id: "today", label: "Today's Activities", icon: "☀️",
+        headerDetail: "Wednesday, March 26 · Maya Chen",
+        autoExpand: true,
+        cards: [
+          {
+            id: "today-actions", label: "Your Action Items", icon: "⚡",
+            sources: ["Jira"],
+            summary: { main: "3 items need your attention today", status: "amber" },
+            detail: [
+              { label: "PR #247 — Code Review", value: "Raj's contact dedup logic — waiting 14 hours", status: "amber", expandedDetail: "+347/-89 lines across 3 files. CI passing. Raj is blocked on ACME-1190 until this merges, and Chen Wei needs the merge to continue integration tests.", sourceLink: "Review in GitHub →", actions: [{ label: "Review PR #247", link: "GitHub" }] },
+              { label: "ACME-1182", value: "Account hierarchy validation — Day 2 of 3", status: "green", expandedDetail: "Apex trigger + test class. Schema decision (DD-042) confirmed: 5-level limit. ParentId lookup validation in progress. No blockers.", sourceLink: "Open in Jira →" },
+              { label: "PR #249 — Your Submission", value: "Lead conversion flow — in review, no comments yet", status: "green", expandedDetail: "Submitted 6 hours ago. CI passing. No reviewer assigned yet — may want to flag in standup.", sourceLink: "View in GitHub →" },
+            ],
+            threads: [
+              { id: "today-actions-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+                { from: "agent", text: "Good morning, Maya. Three items for your attention today. The most time-sensitive is PR #247 — Raj has been waiting 14 hours and Chen Wei's integration tests are blocked downstream.", time: "8:02 AM", actions: [{ label: "Review PR #247", link: "GitHub" }] },
+                { from: "agent", text: "Your ACME-1182 is on track for Day 2. The hierarchy validation trigger is straightforward given DD-042's 5-level constraint. I've verified the design doc matches your implementation approach.", time: "8:02 AM", actions: [{ label: "View ACME-1182", link: "Jira" }] },
+                { from: "user", text: "Who should I flag for PR #249 review?", time: "8:15 AM" },
+                { from: "agent", text: "Raj is the best fit — he's familiar with the lead process from ACME-1186. But he's starting ACME-1190 today, so Sarah is the backup. Given Sarah's current load, I'd recommend Raj and mentioning it in standup.", time: "8:15 AM", actions: [{ label: "Message Raj", link: "Slack" }] },
+              ]},
+            ],
+          },
+          {
+            id: "today-prep", label: "Prep Needed", icon: "📋",
+            sources: ["Google Calendar", "Google Docs"],
+            summary: { main: "2 upcoming events need preparation", status: "amber" },
+            detail: [
+              { label: "Fri 10:00 AM — Sprint Demo", value: "Demo narrative not confirmed — you're presenting Sales Cloud", status: "amber", expandedDetail: "Alex needs your demo narrative by Thursday. You're covering: opportunity page layout (ACME-1180, done), account hierarchy validation (ACME-1182, in progress), and lead conversion flow (PR #249, in review). Recommend confirming which features to show live vs screenshot.", actions: [{ label: "Message Alex", link: "Slack" }] },
+              { label: "Apr 2 — Sprint 5 Planning Workshop", value: "⚠️ No deck created yet", status: "red", expandedDetail: "2-hour workshop. All team + Lisa Park. Pre-read shared but no presentation deck exists. A template is available from the PMO Toolkit.", draftAction: true, actions: [{ label: "View calendar event", link: "Google Calendar" }] },
+            ],
+            threads: [
+              { id: "today-prep-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+                { from: "agent", text: "Two events need preparation. The Sprint Demo Friday needs your narrative for the Sales Cloud track. I can help outline talking points based on completed stories if you'd like.", time: "8:03 AM", actions: [{ label: "Draft demo narrative", link: "Google Docs" }] },
+                { from: "agent", text: "The Sprint 5 Planning Workshop on April 2 has no deck. I have a Sprint Planning Workshop template in Google Slides from the PMO Toolkit that matches this workshop type.", time: "8:03 AM" },
+                { from: "user", text: "Draft a deck for the Sprint 5 Planning Workshop from the template", time: "8:20 AM" },
+                { from: "agent", text: "I found the \"Sprint Planning Workshop\" template in Google Slides. It includes sections for:\n\n• Sprint Retrospective Summary\n• Velocity Analysis & Trends\n• Backlog Refinement\n• Sprint Goals & Commitments\n• Risks & Dependencies\n\nI can create a copy and pre-fill it with Sprint 5 data from Jira and the retro notes. Should I go ahead?", time: "8:20 AM", tier: 3 },
+                { from: "user", text: "Yes, go ahead", time: "8:21 AM" },
+                { from: "agent", text: "Done. I've created \"Sprint 5 Planning Workshop — Apr 2\" in Google Slides, pre-filled with:\n\n• Sprint 4 velocity data (34/42 pts, trending analysis)\n• Backlog: 6 stories estimated, 2 flagged for refinement (ACME-1210, ACME-1212)\n• Carry-over items from Sprint 4 (if any)\n• RAID highlights (RAID-017 status, CR-009 decision)\n\nThe 2 stories needing refinement are called out with placeholder slides for discussion. You'll want to review before sharing with the team.", time: "8:22 AM", tier: 2, actions: [{ label: "Open deck in Google Slides", link: "Google Slides" }, { label: "Share with team", link: "Slack" }] },
+              ]},
+            ],
+          },
+          {
+            id: "today-catchup", label: "Since You Were Last Here", icon: "💬",
+            sources: ["Slack"],
+            summary: { main: "4 conversations updated overnight", status: "green" },
+            detail: [
+              { label: "#acme-proj-alpha", value: "Raj: sandbox unblocked, asked about PR #247 timeline", status: "amber", expandedDetail: "Raj posted at 11:30 PM (offshore hours) confirming the sandbox refresh completed. He asked when PR #247 review would be done — this is now 14 hours waiting.", actions: [{ label: "View thread", link: "Slack" }] },
+              { label: "Lisa Park (DM)", value: "Confirmed Oracle access escalation by EOD Wednesday", status: "green", expandedDetail: "Lisa responded to Alex's message about RAID-017. She's pushing her IT director Diana Reyes for Thursday resolution. This is a positive signal.", actions: [{ label: "View DM", link: "Slack" }] },
+              { label: "#acme-crm-data", value: "Offshore team resolved integration test environment issue", status: "green", expandedDetail: "Chen Wei's integration test environment was failing due to a stale sandbox. Offshore team (Mumbai) patched it at 2 AM EST. Tests now passing.", actions: [{ label: "View thread", link: "Slack" }] },
+              { label: "#acme-proj-alpha-sa", value: "Alex shared Sprint 4 retro notes and Sprint 5 scope doc", status: "green", expandedDetail: "Pre-read materials for the Apr 2 workshop. Both documents linked in the channel. Lisa acknowledged receipt.", actions: [{ label: "View thread", link: "Slack" }] },
+            ],
+            threads: [
+              { id: "today-catchup-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+                { from: "agent", text: "4 conversations updated since your last visit yesterday at 6:15 PM. The most actionable: Raj is waiting on your PR #247 review — he mentioned it in #acme-proj-alpha at 11:30 PM.", time: "8:02 AM", actions: [{ label: "View in #acme-proj-alpha", link: "Slack" }] },
+                { from: "agent", text: "Good news on RAID-017: Lisa confirmed she's escalating Oracle access. The offshore team also resolved Chen Wei's test environment issue, so integration tests are unblocked.", time: "8:02 AM" },
+              ]},
+            ],
+          },
+          {
+            id: "today-recs", label: "Recommendations", icon: "💡",
+            sources: ["Open AI Log"],
+            summary: { main: "3 suggestions from your project agent", status: "green" },
+            detail: [
+              { label: "Knowledge transfer gap", value: "Sarah's CPQ pairing session with Raj is tomorrow — review the CR-009 context so you can backfill if needed", status: "amber", expandedDetail: "You're not directly involved, but if Sarah or Raj have questions about the Account hierarchy (which interacts with CPQ pricing tiers), you're the expert. Having the CR-009 context fresh will help.", actions: [{ label: "View CR-009", link: "Confluence" }] },
+              { label: "PTO not on team calendar", value: "Chen Wei mentioned taking Friday off in DM but it's not on the project calendar", status: "amber", expandedDetail: "Chen Wei mentioned to Raj in a DM that he's taking Friday off for a personal appointment. This isn't reflected in the project calendar. If he's out, integration testing pauses for a day.", actions: [{ label: "Notify Alex", link: "Slack" }, { label: "Add to calendar", link: "Google Calendar" }] },
+              { label: "Standup optimization", value: "You've been providing standup updates manually — I can auto-generate from your Jira activity", status: "green", expandedDetail: "For the last 3 sprints, your standup updates closely match your Jira activity. I can auto-draft your update each morning for you to review and post, saving ~5 minutes daily." },
+            ],
+            threads: [
+              { id: "today-recs-agent", label: "Agent", icon: "🤖", unread: 0, messages: [
+                { from: "agent", text: "Three recommendations for today. The most time-sensitive: Chen Wei's Friday PTO isn't on the project calendar. If he's out, the integration test push to 90% pauses.", time: "8:04 AM", actions: [{ label: "Notify Alex", link: "Slack" }, { label: "Add to calendar", link: "Google Calendar" }] },
+                { from: "agent", text: "Also: I can start auto-generating your standup updates from Jira activity. Want me to start tomorrow? You'd review and edit before posting.", time: "8:04 AM" },
+                { from: "user", text: "Yes, start generating my standups. Also notify Alex about Chen Wei's PTO.", time: "8:30 AM" },
+                { from: "agent", text: "Done. Two actions taken:\n\n1. Standup auto-generation enabled. I'll draft your update each morning at 7:45 AM based on Jira activity and post it for your review in this thread.\n\n2. Sent Alex a message in #acme-proj-alpha-leader: \"Heads up — Chen Wei mentioned taking Friday off. Not yet on project calendar. May want to confirm and adjust integration testing timeline.\"", time: "8:30 AM", tier: 2, actions: [{ label: "View message to Alex", link: "Slack" }] },
+              ]},
+            ],
+          },
+        ],
+      },
+
       overview: {
         id: "overview", label: "Project Overview", icon: "ⓘ",
         headerDetail: "Acme CRM · Build Phase · Sprint 4 of 8",
@@ -322,6 +406,7 @@
     };
 
     const PAGE_LIST = [
+      { id: "today", label: "Today's Activities", icon: "☀️" },
       { id: "overview", label: "Project Overview", icon: "ⓘ" },
       { id: "sprint", label: "Sprint Board", icon: "#" },
       { id: "people", label: "People", icon: "👥" },
@@ -357,10 +442,10 @@
       );
     }
 
-    function Row({ item, t }) {
+    function Row({ item, t, onDraft }) {
       const [open, setOpen] = useState(false);
       const c = STATUS_COLORS[item.status] || STATUS_COLORS.green;
-      const has = item.expandedDetail || item.sourceLink || item.actions;
+      const has = item.expandedDetail || item.sourceLink || item.actions || item.draftAction;
       return (
         <div style={{ borderRadius: 5, overflow: "hidden" }}>
           <div onClick={() => has && setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", background: c.bg, gap: 12, cursor: has ? "pointer" : "default" }}>
@@ -381,6 +466,11 @@
             <div style={{ padding: "8px 12px 10px 30px", background: t.bgExpanded, borderTop: `1px solid ${t.border}` }}>
               {item.expandedDetail && <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>{item.expandedDetail}</div>}
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {onDraft && (
+                  <div onClick={(e) => { e.stopPropagation(); onDraft(); }} style={{ fontSize: 11, padding: "5px 14px", borderRadius: 5, background: "linear-gradient(135deg, #7B61FF, #58A6FF)", color: "#fff", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                    ✨ Draft from template
+                  </div>
+                )}
                 {item.sourceLink && <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: t.accentBg, color: t.accent, cursor: "pointer", fontWeight: 500 }}>{item.sourceLink}</div>}
                 {item.actions?.map((a, i) => (
                   <div key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 4, background: t.bgInput, color: t.textMuted, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>{a.label} <span style={{ fontSize: 9, opacity: 0.5 }}>→ {a.link}</span></div>
@@ -525,12 +615,13 @@
       const [isDark, setIsDark] = useState(true);
       const [config, setConfig] = useState({ hiddenPages: [], hiddenCards: [] });
       const [settingsOpen, setSettingsOpen] = useState(false);
-      const [activePage, setActivePage] = useState("overview");
+      const [activePage, setActivePage] = useState("today");
       const [expanded, setExpanded] = useState(null);
-      const [chatId, setChatId] = useState(null);
-      const [chatOpen, setChatOpen] = useState(false);
+      const [chatId, setChatId] = useState("today-actions");
+      const [chatOpen, setChatOpen] = useState(true);
       const [threadTabs, setThreadTabs] = useState({});
       const [myTasks, setMyTasks] = useState(false);
+      const [collapsed, setCollapsed] = useState({});
 
       // Demo chat state
       const [demoIndex, setDemoIndex] = useState({}); // per-thread: how many messages visible
@@ -544,7 +635,7 @@
       const allCards = pageData?.cards || [];
       const cards = allCards.filter(c => !config.hiddenCards?.includes(`${activePage}:${c.id}`));
 
-      const switchPage = (pgId) => { setActivePage(pgId); setExpanded(null); setMyTasks(false); const fc = PAGES_DATA[pgId]?.cards?.[0]; if (fc) { setChatId(fc.id); setChatOpen(true); } };
+      const switchPage = (pgId) => { setActivePage(pgId); setExpanded(null); setCollapsed({}); setMyTasks(false); const fc = PAGES_DATA[pgId]?.cards?.[0]; if (fc) { setChatId(fc.id); setChatOpen(true); } };
       const toggle = id => setExpanded(expanded === id ? null : id);
       const openChat = id => { setChatId(id); setChatOpen(true); };
 
@@ -704,23 +795,23 @@
 
             {/* Top: cards */}
             <div style={{ flex: chatOpen ? "0 0 auto" : 1, maxHeight: chatOpen ? "48%" : "100%", overflowY: "auto", padding: "12px 24px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: expanded ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: (expanded || pageData?.autoExpand) ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 6 }}>
                 {cards.map(card => {
-                  const isExp = expanded === card.id;
+                  const isAutoExpand = pageData?.autoExpand;
+                  const isExp = isAutoExpand ? !collapsed[card.id] : expanded === card.id;
                   const isChat = chatId === card.id && chatOpen;
                   const sc = STATUS_COLORS[card.summary.status] || STATUS_COLORS.green;
                   const ur = card.threads.reduce((s, th) => s + th.unread, 0);
                   const filteredDetail = filterForUser(card.detail);
 
-                  // Hide cards with no items when My Tasks is on
                   if (myTasks && filteredDetail.length === 0 && !isExp) return null;
 
-                  if (expanded && !isExp) return <Pill key={card.id} card={card} isChat={isChat} onExpand={() => toggle(card.id)} onChat={() => openChat(card.id)} t={t} />;
+                  if (!isAutoExpand && expanded && !isExp) return <Pill key={card.id} card={card} isChat={isChat} onExpand={() => toggle(card.id)} onChat={() => openChat(card.id)} t={t} />;
 
                   return (
                     <div key={card.id} style={{ background: isChat ? t.bgCardHover : t.bgCard, border: `1px solid ${isChat ? t.borderActive : t.border}`, borderRadius: 8, gridColumn: isExp ? "1 / -1" : "auto" }}>
                       <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div onClick={() => toggle(card.id)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: 1, minWidth: 0 }}>
+                        <div onClick={() => isAutoExpand ? setCollapsed(prev => ({ ...prev, [card.id]: !prev[card.id] })) : toggle(card.id)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 14 }}>{card.icon}</span>
                           <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{card.label}</span>
                           <span style={{ fontSize: 13, color: t.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myTasks ? `${filteredDetail.length} items` : card.summary.main}</span>
@@ -733,13 +824,13 @@
                           <div onClick={() => openChat(card.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, background: isChat ? t.accentBg : t.bgInput, color: isChat ? t.accent : t.textDim, cursor: "pointer", fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
                             💬{ur > 0 && <span style={{ fontSize: 9, padding: "0 5px", borderRadius: 8, background: t.accent, color: "#fff", fontWeight: 700, marginLeft: 2 }}>{ur}</span>}
                           </div>
-                          <span onClick={() => toggle(card.id)} style={{ fontSize: 10, color: t.textDim, cursor: "pointer", padding: "4px 6px" }}>{isExp ? "▲" : "▼"}</span>
+                          <span onClick={() => isAutoExpand ? setCollapsed(prev => ({ ...prev, [card.id]: !prev[card.id] })) : toggle(card.id)} style={{ fontSize: 10, color: t.textDim, cursor: "pointer", padding: "4px 6px" }}>{isExp ? "▲" : "▼"}</span>
                         </div>
                       </div>
                       {isExp && (
                         <div style={{ padding: "0 14px 12px", borderTop: `1px solid ${t.border}` }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: 3, paddingTop: 8 }}>
-                            {filteredDetail.map((item, j) => <Row key={j} item={item} t={t} />)}
+                            {filteredDetail.map((item, j) => <Row key={j} item={item} t={t} onDraft={item.draftAction ? () => { openChat(card.id); setInputText("Draft a deck for the Sprint 5 Planning Workshop from the template"); } : null} />)}
                             {myTasks && filteredDetail.length === 0 && <div style={{ fontSize: 13, color: t.textDim, padding: "12px", textAlign: "center" }}>No items assigned to {CURRENT_USER}</div>}
                           </div>
                           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
